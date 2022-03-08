@@ -2,5 +2,5 @@
 set -e
 
 nix-shell \
-	--command 'cd roc && cargo build --release --features target-arm' \
+	--command 'cd roc && cargo build --release' \
 	./roc/shell.nix
