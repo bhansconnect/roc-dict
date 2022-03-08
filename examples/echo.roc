@@ -1,5 +1,5 @@
 app "echo"
-    packages { pf: "../platform" }
+    packages { pf: "../roc/examples/interactive/cli-platform" }
     imports [ pf.Stdin, pf.Stdout, pf.Task ]
     provides [ main ] to pf
 
