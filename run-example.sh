@@ -2,9 +2,14 @@
 set -e
 
 example="$1"
-example_roc="./examples/$example.roc"
+shift 1
+args="$@"
+example_roc="examples/$example.roc"
 if [ -f "$example_roc" ]; then
-	./roc/target/release/roc --optimize $example_roc
+	cmd="cd roc && ./target/release/roc ../$example_roc $args"
+	nix-shell \
+		--command "$cmd" \
+		./roc/shell.nix
 else
 	echo "$example is not an example!"
 fi
