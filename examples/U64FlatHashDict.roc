@@ -25,12 +25,13 @@ U64FlatHashDict a := {
         metadata : List I8,
         size : Nat,
         default : Elem a,
+        seed: Wyhash.Seed,
     }
 
 # This requires an element because we don't know how to generate a default elem.
 # For simplicity for now, I am just storing the default value.
-empty : a -> U64FlatHashDict a
-empty = \default ->
+empty : Wyhash.Seed, a -> U64FlatHashDict a
+empty = \seed, default ->
     defaultElem = T 0 default
 
     $U64FlatHashDict
@@ -39,6 +40,7 @@ empty = \default ->
             metadata: [],
             size: 0,
             default: defaultElem,
+            seed,
         }
 
 contains : U64FlatHashDict a, U64 -> Bool
@@ -62,14 +64,16 @@ remove = \dict, key ->
 
 # Does insertion without potentially rehashing.
 insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insertInternal = \$U64FlatHashDict { data, metadata, size, default }, key, value ->
-    hashKey = hash key
+insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
+    hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
     index =
         when h1Key % Num.toU64 (List.len data) is
             Ok i ->
-                indexHelper metadata (Num.toNat i)
+                # TODO: Enable once toNat is added to roc
+                # indexHelper metadata (Num.toNat i)
+                42
 
             Err DivByZero ->
                 # This should never happen. Panic.
@@ -81,6 +85,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default }, key, value
             metadata: List.set metadata index h2Key,
             size,
             default,
+            seed,
         }
 
 indexHelper : List I8, Nat -> Nat
@@ -101,19 +106,19 @@ indexHelper = \metadata, index ->
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
-maybeRehash = \$U64FlatHashDict { data, metadata, size, default } ->
+maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     when Num.toFloat size / Num.toFloat (List.len data) is
         Ok loadFactor ->
             if loadFactor >= maxLoadFactor then
-                rehash ($U64FlatHashDict { data, metadata, size, default })
+                rehash ($U64FlatHashDict { data, metadata, size, default, seed })
             else
-                $U64FlatHashDict { data, metadata, size, default }
+                $U64FlatHashDict { data, metadata, size, default, seed }
 
         Err DivByZero ->
-            rehash ($U64FlatHashDict { data, metadata, size, default })
+            rehash ($U64FlatHashDict { data, metadata, size, default, seed })
 
 rehash : U64FlatHashDict a -> U64FlatHashDict a
-rehash = \$U64FlatHashDict { data, metadata, size, default } ->
+rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     newLen =
         if List.isEmpty data then
             defaultSlotCount
@@ -126,6 +131,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default } ->
             metadata: List.repeat emptySlot newLen,
             size,
             default,
+            seed,
         }
 
     rehashHelper newDict metadata data 0
@@ -160,9 +166,3 @@ h1 = \hashKey ->
 h2 : U64 -> I8
 h2 = \hashKey ->
     Num.toI8 (Num.bitwiseAnd hashKey 127)
-
-# This is just Wyhash.
-hash : U64 -> U64
-hash = \key ->
-    # TODO
-    key
