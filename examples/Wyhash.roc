@@ -1,5 +1,5 @@
 interface Wyhash
-    exposes [ hashU64, createSeed, Seed, rand ]
+    exposes [ hashU64, createSeed, Seed, rand, combine ]
     imports []
 
 # Note: this is just the version of wyhash for 64 bit numbers.
@@ -29,8 +29,8 @@ wymix = \a, b ->
         T x y ->
             Num.bitwiseXor x y
 
-wyhash64 : U64, U64 -> U64
-wyhash64 = \a, b ->
+combine : U64, U64 -> U64
+combine = \a, b ->
     when wymum (Num.bitwiseXor a wyp0) (Num.bitwiseXor b wyp1) is
         T x y ->
             wymix (Num.bitwiseXor x wyp0) (Num.bitwiseXor y wyp1)
