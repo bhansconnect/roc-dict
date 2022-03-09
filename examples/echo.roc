@@ -23,11 +23,14 @@ echo = \shout ->
         |> U64FlatDict.insert 7 "       "
         |> U64FlatDict.insert 6 "      "
         |> U64FlatDict.insert 5 "     "
-        |> U64FlatDict.insert 4 "    "
+        |> U64FlatDict.insert 12 "garbage"
+        |> U64FlatDict.insert 4 "wrong"
         |> U64FlatDict.insert 3 "   "
         |> U64FlatDict.insert 2 "  "
         |> U64FlatDict.insert 1 " "
         |> U64FlatDict.insert 0 ""
+        |> U64FlatDict.remove 12
+        |> U64FlatDict.insert 4 "    "
 
     silence = \cache, length ->
         spaceInUtf8 = 32

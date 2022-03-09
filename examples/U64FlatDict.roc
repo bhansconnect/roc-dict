@@ -1,5 +1,5 @@
 interface U64FlatDict
-    exposes [ U64FlatDict, empty, insert, contains, get ]
+    exposes [ U64FlatDict, empty, insert, contains, get, remove ]
     imports []
 
 # TODO: move to dict folder once supported.
@@ -55,3 +55,22 @@ insert = \$U64FlatDict list, key, value ->
     else
         # Update existing element
         $U64FlatDict (List.set list index (T key value))
+
+remove : U64FlatDict a, U64 -> U64FlatDict a
+remove = \$U64FlatDict list, key ->
+    index = List.walkUntil
+        list
+        0
+        (\state, T elemKey _ ->
+                if elemKey == key then
+                    Stop state
+                else
+                    Continue (state + 1)
+        )
+
+    if index == List.len list then
+        # Item not found, nothing to do
+        $U64FlatDict list
+    else
+        # Update existing element
+        $U64FlatDict (List.dropAt list index)
