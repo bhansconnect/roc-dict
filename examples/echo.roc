@@ -4,7 +4,6 @@ app "echo"
     provides [ main ] to pf
 
 # TODO change examples to some form of benchmark.
-
 main : Task.Task {} []
 main =
     _ <- Task.await (Stdout.line "🗣  Shout into this cave and hear the echo! 👂👂👂")
@@ -18,25 +17,28 @@ tick =
 echo : Str -> Str
 echo = \shout ->
     dict = U64FlatDict.empty {}
-            |> U64FlatDict.insert 10 "          "
-            |> U64FlatDict.insert 9 "         "
-            |> U64FlatDict.insert 8 "        "
-            |> U64FlatDict.insert 7 "       "
-            |> U64FlatDict.insert 6 "      "
-            |> U64FlatDict.insert 5 "     "
-            |> U64FlatDict.insert 4 "    "
-            |> U64FlatDict.insert 3 "   "
-            |> U64FlatDict.insert 2 "  "
-            |> U64FlatDict.insert 1 " "
-            |> U64FlatDict.insert 0 ""
+        |> U64FlatDict.insert 10 "          "
+        |> U64FlatDict.insert 9 "         "
+        |> U64FlatDict.insert 8 "        "
+        |> U64FlatDict.insert 7 "       "
+        |> U64FlatDict.insert 6 "      "
+        |> U64FlatDict.insert 5 "     "
+        |> U64FlatDict.insert 4 "    "
+        |> U64FlatDict.insert 3 "   "
+        |> U64FlatDict.insert 2 "  "
+        |> U64FlatDict.insert 1 " "
+        |> U64FlatDict.insert 0 ""
 
     silence = \cache, length ->
         spaceInUtf8 = 32
 
         when U64FlatDict.get cache (Num.toU64 length) is
-            Some val -> Str.toUtf8 val
-            None -> List.repeat spaceInUtf8 length
-    
+            Some val ->
+                Str.toUtf8 val
+
+            None ->
+                List.repeat spaceInUtf8 length
+
     shout
         |> Str.toUtf8
         |> List.mapWithIndex
