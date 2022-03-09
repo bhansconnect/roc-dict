@@ -1,6 +1,6 @@
 interface U64FlatHashDict
     exposes [ U64FlatHashDict, empty, insert, contains, get, remove ]
-    imports []
+    imports [ Wyhash ]
 
 # This is based off of absl::flat_hash_map.
 # It is simplified to make it nicer to write in roc.
@@ -68,16 +68,19 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default }, key, value
     h2Key = h2 hashKey
     index =
         when h1Key % Num.toU64 (List.len data) is
-            Ok i -> indexHelper metadata (Num.toNat i)
+            Ok i ->
+                indexHelper metadata (Num.toNat i)
+
             Err DivByZero ->
                 # This should never happen. Panic.
                 0 - 1
-    
-    $U64FlatHashDict {
-        data: List.set data index (T key value),
-        metadata: List.set metadata index h2Key,
-        size, 
-        default
+
+    $U64FlatHashDict
+        {
+            data: List.set data index (T key value),
+            metadata: List.set metadata index h2Key,
+            size,
+            default,
         }
 
 indexHelper : List I8, Nat -> Nat
@@ -90,10 +93,11 @@ indexHelper = \metadata, index ->
             else
                 # Used slot, check next slot
                 indexHelper metadata (index + 1)
+
         Err OutOfBounds ->
             # loop back to begining of list
             indexHelper metadata 0
-        
+
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
@@ -157,6 +161,7 @@ h2 : U64 -> I8
 h2 = \hashKey ->
     Num.toI8 (Num.bitwiseAnd hashKey 127)
 
+# This is just Wyhash.
 hash : U64 -> U64
 hash = \key ->
     # TODO
