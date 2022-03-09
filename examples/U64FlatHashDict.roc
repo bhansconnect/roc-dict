@@ -25,7 +25,7 @@ U64FlatHashDict a := {
         metadata : List I8,
         size : Nat,
         default : Elem a,
-        seed: Wyhash.Seed,
+        seed : Wyhash.Seed,
     }
 
 # This requires an element because we don't know how to generate a default elem.

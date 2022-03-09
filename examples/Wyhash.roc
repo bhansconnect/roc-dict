@@ -9,11 +9,10 @@ wyp0 : U64
 wyp0 = 0xa0761d6478bd642f
 wyp1 : U64
 wyp1 = 0xe7037ed1a0b428db
-#wyp2 : U64
-#wyp2 = 0x8ebc6af09c88c6e3
-#wyp3 : U64
-#wyp3 = 0x589965cc75374cc3
-
+# wyp2 : U64
+# wyp2 = 0x8ebc6af09c88c6e3
+# wyp3 : U64
+# wyp3 = 0x589965cc75374cc3
 wymum : U64, U64 -> [ T U64 U64 ]
 wymum = \a, b ->
     r = Num.toU128 a * Num.toU128 b
