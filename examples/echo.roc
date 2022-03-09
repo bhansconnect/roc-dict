@@ -1,6 +1,6 @@
 app "echo"
     packages { pf: "../roc/examples/interactive/cli-platform" }
-    imports [ pf.Stdin, pf.Stdout, pf.Task, U64FlatDict ]
+    imports [ pf.Stdin, pf.Stdout, pf.Task, U64FlatDict, U64FlatHashDict ]
     provides [ main ] to pf
 
 # TODO change examples to some form of benchmark.

@@ -4,9 +4,11 @@ interface U64FlatDict
 
 # TODO: move to dict folder once supported.
 # A Flat Dict is just a list of key value pairs.
-U64FlatDictElem a : [ T U64 a ]
+Option a : [ Some a, None ]
 
-U64FlatDict a := List (U64FlatDictElem a)
+Elem a : [ T U64 a ]
+
+U64FlatDict a := List (Elem a)
 
 empty : {} -> U64FlatDict a
 empty = \{  } -> $U64FlatDict []
@@ -22,8 +24,6 @@ contains = \$U64FlatDict list, key ->
                 else
                     Continue state
         )
-
-Option a : [ Some a, None ]
 
 get : U64FlatDict a, U64 -> Option a
 get = \$U64FlatDict list, key ->
