@@ -159,7 +159,7 @@ hashBytesHelper16 = \seed, list, index, remaining ->
     if newRemaining > 16 then
         hashBytesHelper16 newSeed list newIndex newRemaining
     else
-        {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+remaining-8)}
+        {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+newRemaining-8)}
 
 
 #   if(_likely_(len<=16)){
