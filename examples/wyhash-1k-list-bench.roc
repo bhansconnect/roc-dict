@@ -14,9 +14,10 @@ main =
         |> Task.putInt
 
 hashHelper : U64, I64, List U8 -> U64
-hashHelper = \hash, iters, val ->
-    if iters <= 0 then
+hashHelper = \hash, remaining, val ->
+    if remaining <= 0 then
         hash
     else
-        next = Wyhash.combine hash (Wyhash.hashBytes seed val)
-        hashHelper next (iters - 1) val
+        nextVal = List.set val 0 (Num.toU8 (Num.bitwiseAnd 0xFF remaining))
+        next = Wyhash.combine hash (Wyhash.hashBytes seed nextVal)
+        hashHelper next (remaining - 1) nextVal
