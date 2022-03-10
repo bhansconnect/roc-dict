@@ -9,10 +9,10 @@ wyp0 : U64
 wyp0 = 0xa0761d6478bd642f
 wyp1 : U64
 wyp1 = 0xe7037ed1a0b428db
-# wyp2 : U64
-# wyp2 = 0x8ebc6af09c88c6e3
-# wyp3 : U64
-# wyp3 = 0x589965cc75374cc3
+wyp2 : U64
+wyp2 = 0x8ebc6af09c88c6e3
+wyp3 : U64
+wyp3 = 0x589965cc75374cc3
 
 # Remove these once related roc bugs are fixed.
 toU128Hack = \val ->
@@ -132,9 +132,34 @@ hashBytes = \$Seed oldSeed, list ->
                 {a: wyr3 list 0 len, b: 0}
             else
                 {a: 0, b: 0}
+        else if len <= 48 then
+            hashBytesHelper16 seed list 0 len
         else
-            {a : 0, b: 0 }
+            hashBytesHelper48 seed seed seed list 0 len
     wymix (Num.bitwiseXor wyp1 (Num.toU64 len)) (wymix (Num.bitwiseXor wyp1 ab.a) (Num.bitwiseXor seed ab.b))
+
+hashBytesHelper48 : U64, U64, U64, List U8, Nat, Nat -> { a: U64, b: U64 }
+hashBytesHelper48 = \seed, see1, see2, list, index, remaining ->
+    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
+    newSee1 = wymix (Num.bitwiseXor (wyr8 list (index+16)) wyp2) (Num.bitwiseXor (wyr8 list (index+24)) see1)
+    newSee2 = wymix (Num.bitwiseXor (wyr8 list (index+32)) wyp3) (Num.bitwiseXor (wyr8 list (index+40)) see2)
+    newRemaining = remaining - 48
+    newIndex = index + 48
+    if newRemaining > 48 then
+        hashBytesHelper48 newSeed newSee1 newSee2 list newIndex newRemaining
+    else
+        hashBytesHelper16 newSeed list newIndex newRemaining
+
+
+hashBytesHelper16 : U64, List U8, Nat, Nat -> { a: U64, b: U64 }
+hashBytesHelper16 = \seed, list, index, remaining ->
+    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
+    newRemaining = remaining - 16
+    newIndex = index + 16
+    if newRemaining > 16 then
+        hashBytesHelper16 newSeed list newIndex newRemaining
+    else
+        {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+remaining-8)}
 
 
 #   if(_likely_(len<=16)){
