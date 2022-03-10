@@ -79,14 +79,15 @@ getByte = \list, index ->
 # Get the next 8 bytes as a U64
 wyr8 : List U8, Nat -> U64
 wyr8 = \list, index ->
-    p1 = Num.toU64 (getByte list index)
-    p2 = Num.toU64 (getByte list (index + 1))
-    p3 = Num.toU64 (getByte list (index + 2))
-    p4 = Num.toU64 (getByte list (index + 3))
-    p5 = Num.toU64 (getByte list (index + 4))
-    p6 = Num.toU64 (getByte list (index + 5))
-    p7 = Num.toU64 (getByte list (index + 6))
-    p8 = Num.toU64 (getByte list (index + 7))
+    # TODO: Remove the and in the future, it shouldn't be needed.
+    p1 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list index))
+    p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 1)))
+    p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 2)))
+    p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
+    p5 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 4)))
+    p6 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 5)))
+    p7 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 6)))
+    p8 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 7)))
     a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
     b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
     c = Num.bitwiseOr (Num.shiftLeftBy 32 p5) (Num.shiftLeftBy 40 p6)
@@ -109,10 +110,11 @@ wyr4 = \list, index ->
 # K must be 3 or less.
 wyr3 : List U8, Nat, Nat -> U64
 wyr3 = \list, index, k ->
+    # TODO: Remove the and in the future, it shouldn't be needed.
     # ((uint64_t)p[0])<<16)|(((uint64_t)p[k>>1])<<8)|p[k-1]
-    p1 = Num.toU64 (getByte list index)
-    p2 = Num.toU64 (getByte list (index + (shiftRightZfByHack 1 k)))
-    p3 = Num.toU64 (getByte list (index + k - 1))
+    p1 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list index))
+    p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + (shiftRightZfByHack 1 k))))
+    p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + k - 1)))
     a = Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2)
     Num.bitwiseOr a p3
 
