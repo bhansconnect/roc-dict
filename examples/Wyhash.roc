@@ -158,10 +158,10 @@ hashBytesHelper16 = \seed, list, index, remaining ->
     newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
     newRemaining = remaining - 16
     newIndex = index + 16
-    if newRemaining > 16 then
-        hashBytesHelper16 newSeed list newIndex newRemaining
-    else
+    if newRemaining <= 16 then
         {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+newRemaining-8)}
+    else
+        hashBytesHelper16 newSeed list newIndex newRemaining
 
 
 #   if(_likely_(len<=16)){
