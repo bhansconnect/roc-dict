@@ -7,7 +7,7 @@ seed : Wyhash.Seed
 seed = Wyhash.createSeed 0x1234_5678_90AB_CDEF
 
 base : U64
-base = 0xFEDC_BA09_5678_4321
+base = 0xFEDC_BA09_8765_4321
 
 main : Task.Task {} []
 main =

@@ -11,7 +11,7 @@ int main() {
   std::cin >> iters;
 
   uint64_t seed = 0x1234567890ABCDEF;
-  int64_t hash = 0xFEDCBA0956784321;
+  int64_t hash = 0xFEDCBA0987654321;
   auto start = std::chrono::high_resolution_clock::now();
   for (int64_t i = 0; i < iters; ++i) {
     hash = wyhash(&hash, 8, seed, _wyp);
