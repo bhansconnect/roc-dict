@@ -80,19 +80,15 @@ getByte = \list, index ->
 wyr8 : List U8, Nat -> U64
 wyr8 = \list, index ->
     # TODO: Remove the and in the future, it shouldn't be needed.
-    p1 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list index))
-    p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 1)))
-    p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 2)))
-    p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
-    p5 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 4)))
-    p6 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 5)))
-    p7 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 6)))
-    p8 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 7)))
-    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
-    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
-    c = Num.bitwiseOr (Num.shiftLeftBy 32 p5) (Num.shiftLeftBy 40 p6)
-    d = Num.bitwiseOr (Num.shiftLeftBy 48 p7) (Num.shiftLeftBy 56 p8)
-    Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
+    p1 = (Num.toU64 (index))
+    p2 = Num.shiftLeftBy 8 ((Num.toU64 ((index + 1))))
+    p3 = Num.shiftLeftBy 16 ((Num.toU64 ((index + 2))))
+    p4 = Num.shiftLeftBy 24 ((Num.toU64 ((index + 3))))
+    p5 = Num.shiftLeftBy 32 ((Num.toU64 ((index + 4))))
+    p6 = Num.shiftLeftBy 40 ((Num.toU64 ((index + 5))))
+    p7 = Num.shiftLeftBy 48 ((Num.toU64 ((index + 6))))
+    p8 = Num.shiftLeftBy 56 ((Num.toU64 ((index + 7))))
+    Num.bitwiseOr p8 (Num.bitwiseOr p7 (Num.bitwiseOr p6 (Num.bitwiseOr p5 (Num.bitwiseOr p4 (Num.bitwiseOr p3 (Num.bitwiseOr p1 p2))))))
 
 # Get the next 4 bytes as a U64
 wyr4 : List U8, Nat -> U64
