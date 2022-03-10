@@ -1,2 +1,3 @@
 echo
 wyhash-bench
+wyhash-to-bytes-bench
