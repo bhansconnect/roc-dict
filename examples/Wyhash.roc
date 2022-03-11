@@ -14,16 +14,12 @@ wyp2 = 0x8ebc6af09c88c6e3
 wyp3 : U64
 wyp3 = 0x589965cc75374cc3
 
-# Remove these once related roc bugs are fixed.
-toU128Hack = \val ->
-    Num.bitwiseAnd 0xFFFF_FFFF_FFFF_FFFF (Num.toU128 val)
-
 shiftRightZfByHack = \by, val ->
     Num.shiftRightBy by val
 
 wymum : U64, U64 -> [ T U64 U64 ]
 wymum = \a, b ->
-    r = (toU128Hack a) * (toU128Hack b)
+    r = (Num.toU128 a) * (Num.toU128 b)
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
     upperR = shiftRightZfByHack 64 r
 
@@ -112,9 +108,9 @@ wyr3 : List U8, Nat, Nat -> U64
 wyr3 = \list, index, k ->
     # TODO: Remove the and in the future, it shouldn't be needed.
     # ((uint64_t)p[0])<<16)|(((uint64_t)p[k>>1])<<8)|p[k-1]
-    p1 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list index))
-    p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + (shiftRightZfByHack 1 k))))
-    p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + k - 1)))
+    p1 = Num.toU64 (getByte list index)
+    p2 = Num.toU64 (getByte list (index + (shiftRightZfByHack 1 k)))
+    p3 = Num.toU64 (getByte list (index + k - 1))
     a = Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2)
     Num.bitwiseOr a p3
 
