@@ -17,16 +17,12 @@ salt3 = 0x082EFA98EC4E6C89
 salt4 : U64
 salt4 = 0x452821E638D01377
 
-# Remove these once related roc bugs are fixed.
-toU128Hack = \val ->
-    Num.bitwiseAnd 0xFFFF_FFFF_FFFF_FFFF (Num.toU128 val)
-
 shiftRightZfByHack = \by, val ->
     Num.shiftRightBy by val
 
 mix : U64, U64 -> U64
 mix = \a, b ->
-    r = (toU128Hack a) * (toU128Hack b)
+    r = (Num.toU128 a) * (Num.toU128 b)
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
     upperR = shiftRightZfByHack 64 r
 
