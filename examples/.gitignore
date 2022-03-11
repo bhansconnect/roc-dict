@@ -1,4 +1,6 @@
 echo
+abslhash-bench
+abslhash-1k-list-bench
 wyhash-bench
 wyhash-1k-list-bench
 wyhash-to-bytes-bench
