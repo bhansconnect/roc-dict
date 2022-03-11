@@ -117,24 +117,27 @@ hashBytes = \$Seed oldSeed, list ->
         else if len <= 48 then
             hashBytesHelper16 seed list 0 len
         else
-            hashBytesHelper48 seed seed seed list 0 len
+            hashBytesHelper48 seed seed seed list 0 len len
     wymix (Num.bitwiseXor wyp1 (Num.toU64 len)) (wymix (Num.bitwiseXor wyp1 abs.a) (Num.bitwiseXor abs.seed abs.b))
 
-hashBytesHelper48 : U64, U64, U64, List U8, Nat, Nat -> { a: U64, b: U64, seed: U64 }
-hashBytesHelper48 = \seed, see1, see2, list, index, remaining ->
-    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
-    newSee1 = wymix (Num.bitwiseXor (wyr8 list (index+16)) wyp2) (Num.bitwiseXor (wyr8 list (index+24)) see1)
-    newSee2 = wymix (Num.bitwiseXor (wyr8 list (index+32)) wyp3) (Num.bitwiseXor (wyr8 list (index+40)) see2)
-    newRemaining = remaining - 48
-    newIndex = index + 48
-    if newRemaining > 48 then
-        hashBytesHelper48 newSeed newSee1 newSee2 list newIndex newRemaining
-    else if newRemaining > 16 then
-        finalSeed = Num.bitwiseXor newSee2 (Num.bitwiseXor newSee1 newSeed)
-        hashBytesHelper16 finalSeed list newIndex newRemaining
+hashBytesHelper48 : U64, U64, U64, List U8, Nat, Nat, Nat -> { a: U64, b: U64, seed: U64 }
+hashBytesHelper48 = \seed, see1, see2, list, index, remaining, len ->
+    if len > index + 48 then
+        newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
+        newSee1 = wymix (Num.bitwiseXor (wyr8 list (index+16)) wyp2) (Num.bitwiseXor (wyr8 list (index+24)) see1)
+        newSee2 = wymix (Num.bitwiseXor (wyr8 list (index+32)) wyp3) (Num.bitwiseXor (wyr8 list (index+40)) see2)
+        newRemaining = remaining - 48
+        newIndex = index + 48
+        if newRemaining > 48 then
+            hashBytesHelper48 newSeed newSee1 newSee2 list newIndex newRemaining len
+        else if newRemaining > 16 then
+            finalSeed = Num.bitwiseXor newSee2 (Num.bitwiseXor newSee1 newSeed)
+            hashBytesHelper16 finalSeed list newIndex newRemaining
+        else
+            finalSeed = Num.bitwiseXor newSee2 (Num.bitwiseXor newSee1 newSeed)
+            {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+newRemaining-8), seed: finalSeed}
     else
-        finalSeed = Num.bitwiseXor newSee2 (Num.bitwiseXor newSee1 newSeed)
-        {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+newRemaining-8), seed: finalSeed}
+        {a: 0 - 1, b: 0, seed: 0}
 
 
 hashBytesHelper16 : U64, List U8, Nat, Nat -> { a: U64, b: U64, seed: U64 }
