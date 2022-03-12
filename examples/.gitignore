@@ -1,6 +1,7 @@
 echo
-abslhash-bench
+abslhash-u64-bench
+abslhash-u64-bytes-bench
 abslhash-1k-list-bench
-wyhash-bench
+wyhash-u64-bench
+wyhash-u64-bytes-bench
 wyhash-1k-list-bench
-wyhash-to-bytes-bench
