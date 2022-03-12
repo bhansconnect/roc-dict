@@ -183,7 +183,7 @@ rehashHelper = \dict, metadata, data, index ->
     when List.get metadata index is
         Ok md ->
             nextDict =
-                if md > 0 then
+                if md >= 0 then
                     # We have an actual element here
                     when List.get data index is
                         Ok (T k v) ->
