@@ -32,3 +32,10 @@ executable(
   dependencies: [absl_hash_dep],
   link_with: [],
 )
+
+executable(
+  'abslhash-1k-list-bench',
+  'src/abslhash-1k-list-bench.cc',
+  dependencies: [absl_hash_dep],
+  link_with: [],
+)

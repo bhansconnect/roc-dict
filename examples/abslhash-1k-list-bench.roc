@@ -19,6 +19,6 @@ hashHelper = \hash, remaining, val ->
         hash
     else
         nextVal = List.set val 0 (Num.toU8 (Num.bitwiseAnd 0xFF remaining))
-        next = AbslHash.combine hash (AbslHash.hashBytes seed nextVal)
+        next = Num.bitwiseXor hash (AbslHash.hashBytes seed nextVal)
 
         hashHelper next (remaining - 1) nextVal
