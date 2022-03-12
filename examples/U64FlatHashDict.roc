@@ -52,9 +52,11 @@ contains = \$U64FlatHashDict { data, metadata, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
+
     when indexHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found _) _ ->
             True
+
         _ ->
             False
 
@@ -63,9 +65,11 @@ get = \$U64FlatHashDict { data, metadata, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
+
     when indexHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found v) _ ->
             Some v
+
         _ ->
             None
 
@@ -78,9 +82,11 @@ remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
+
     when indexHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found _) index ->
             $U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }
+
         _ ->
             $U64FlatHashDict { data, metadata, size, default, seed }
 
@@ -90,6 +96,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
+
     when indexHelper metadata data h2Key key (Num.toNat h1Key) is
         T _ index ->
             $U64FlatHashDict
@@ -101,11 +108,12 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
                     seed,
                 }
 
-indexHelper : List I8, List (Elem a), I8, U64, Nat -> [T [Found a, NotFound] Nat]
+indexHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
 indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
     index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
+
     when List.get metadata index is
         Ok md ->
             if md < 0 then
@@ -138,7 +146,7 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
 maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
-    when (Num.toFloat size) / (Num.toFloat (List.len data)) is
+    when Num.toFloat size / Num.toFloat (List.len data) is
         Ok loadFactor ->
             if loadFactor >= maxLoadFactor then
                 rehash ($U64FlatHashDict { data, metadata, size, default, seed })
@@ -152,6 +160,7 @@ rehash : U64FlatHashDict a -> U64FlatHashDict a
 rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     if List.isEmpty data then
         newLen = defaultSlotCount
+
         $U64FlatHashDict
             {
                 data: List.repeat default newLen,
@@ -161,7 +170,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                 seed,
             }
     else
-        newLen = 2 * (List.len data)
+        newLen = 2 * List.len data
         newDict =
             $U64FlatHashDict
                 {
@@ -171,6 +180,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                     default,
                     seed,
                 }
+
         rehashHelper newDict metadata data 0
 
 rehashHelper : U64FlatHashDict a, List I8, List (Elem a), Nat -> U64FlatHashDict a

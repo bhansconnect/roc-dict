@@ -19,7 +19,7 @@ shiftRightZfByHack = \by, val ->
 
 wymum : U64, U64 -> [ T U64 U64 ]
 wymum = \a, b ->
-    r = (Num.toU128 a) * (Num.toU128 b)
+    r = Num.toU128 a * Num.toU128 b
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
     upperR = shiftRightZfByHack 64 r
 
@@ -68,9 +68,12 @@ hashU64 = \$Seed seed, key ->
 getByte : List U8, Nat -> U8
 getByte = \list, index ->
     when List.get list index is
-        Ok b -> b
+        Ok b ->
+            b
+
         # Panic on out of range access.
-        _ -> 0 - 1
+        _ ->
+            0 - 1
 
 # Get the next 8 bytes as a U64
 wyr8 : List U8, Nat -> U64
@@ -88,6 +91,7 @@ wyr8 = \list, index ->
     b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
     c = Num.bitwiseOr (Num.shiftLeftBy 32 p5) (Num.shiftLeftBy 40 p6)
     d = Num.bitwiseOr (Num.shiftLeftBy 48 p7) (Num.shiftLeftBy 56 p8)
+
     Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
 
 # Get the next 4 bytes as a U64
@@ -100,6 +104,7 @@ wyr4 = \list, index ->
     p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
     a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
     b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
+
     Num.bitwiseOr a b
 
 # Get the next K bytes with some shifting.
@@ -109,11 +114,11 @@ wyr3 = \list, index, k ->
     # TODO: Remove the and in the future, it shouldn't be needed.
     # ((uint64_t)p[0])<<16)|(((uint64_t)p[k>>1])<<8)|p[k-1]
     p1 = Num.toU64 (getByte list index)
-    p2 = Num.toU64 (getByte list (index + (shiftRightZfByHack 1 k)))
+    p2 = Num.toU64 (getByte list (index + shiftRightZfByHack 1 k))
     p3 = Num.toU64 (getByte list (index + k - 1))
     a = Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2)
-    Num.bitwiseOr a p3
 
+    Num.bitwiseOr a p3
 
 hashBytes : Seed, List U8 -> U64
 hashBytes = \$Seed oldSeed, list ->
@@ -124,45 +129,49 @@ hashBytes = \$Seed oldSeed, list ->
             if len >= 4 then
                 x = Num.shiftLeftBy 2 (shiftRightZfByHack 3 len)
                 a = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list 0)) (wyr4 list x)
-                b = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list (len-4))) (wyr4 list (len-4-x))
-                {a, b, seed}
+                b = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list (len - 4))) (wyr4 list (len - 4 - x))
+
+                { a, b, seed }
             else if len > 0 then
-                {a: wyr3 list 0 len, b: 0, seed}
+                { a: wyr3 list 0 len, b: 0, seed }
             else
-                {a: 0, b: 0, seed}
+                { a: 0, b: 0, seed }
         else if len <= 48 then
             hashBytesHelper16 seed list 0 len
         else
             hashBytesHelper48 seed seed seed list 0 len
+
     wymix (Num.bitwiseXor wyp1 (Num.toU64 len)) (wymix (Num.bitwiseXor wyp1 abs.a) (Num.bitwiseXor abs.seed abs.b))
 
-hashBytesHelper48 : U64, U64, U64, List U8, Nat, Nat -> { a: U64, b: U64, seed: U64 }
+hashBytesHelper48 : U64, U64, U64, List U8, Nat, Nat -> { a : U64, b : U64, seed : U64 }
 hashBytesHelper48 = \seed, see1, see2, list, index, remaining ->
-    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
-    newSee1 = wymix (Num.bitwiseXor (wyr8 list (index+16)) wyp2) (Num.bitwiseXor (wyr8 list (index+24)) see1)
-    newSee2 = wymix (Num.bitwiseXor (wyr8 list (index+32)) wyp3) (Num.bitwiseXor (wyr8 list (index+40)) see2)
+    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index + 8)) seed)
+    newSee1 = wymix (Num.bitwiseXor (wyr8 list (index + 16)) wyp2) (Num.bitwiseXor (wyr8 list (index + 24)) see1)
+    newSee2 = wymix (Num.bitwiseXor (wyr8 list (index + 32)) wyp3) (Num.bitwiseXor (wyr8 list (index + 40)) see2)
     newRemaining = remaining - 48
     newIndex = index + 48
+
     if newRemaining > 48 then
         hashBytesHelper48 newSeed newSee1 newSee2 list newIndex newRemaining
     else if newRemaining > 16 then
         finalSeed = Num.bitwiseXor newSee2 (Num.bitwiseXor newSee1 newSeed)
+
         hashBytesHelper16 finalSeed list newIndex newRemaining
     else
         finalSeed = Num.bitwiseXor newSee2 (Num.bitwiseXor newSee1 newSeed)
-        {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+newRemaining-8), seed: finalSeed}
 
+        { a: wyr8 list (newIndex + newRemaining - 16), b: wyr8 list (newIndex + newRemaining - 8), seed: finalSeed }
 
-hashBytesHelper16 : U64, List U8, Nat, Nat -> { a: U64, b: U64, seed: U64 }
+hashBytesHelper16 : U64, List U8, Nat, Nat -> { a : U64, b : U64, seed : U64 }
 hashBytesHelper16 = \seed, list, index, remaining ->
-    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index+8)) seed)
+    newSeed = wymix (Num.bitwiseXor (wyr8 list index) wyp1) (Num.bitwiseXor (wyr8 list (index + 8)) seed)
     newRemaining = remaining - 16
     newIndex = index + 16
+
     if newRemaining <= 16 then
-        {a: wyr8 list (newIndex+newRemaining-16), b: wyr8 list (newIndex+newRemaining-8), seed: newSeed}
+        { a: wyr8 list (newIndex + newRemaining - 16), b: wyr8 list (newIndex + newRemaining - 8), seed: newSeed }
     else
         hashBytesHelper16 newSeed list newIndex newRemaining
-
 
 #   seed^=*secret;
 #   if(_likely_(len<=16)){
