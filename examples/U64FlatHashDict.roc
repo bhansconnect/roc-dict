@@ -20,6 +20,10 @@ Option a : [ Some a, None ]
 
 Elem a : [ T U64 a ]
 
+# Metadata should be grouped. This helps make loading faster.
+# One memory load would then load 8 possible indexes.
+# These could then be compared with vector instructions (if added to roc).
+# To start just making it non-grouped for simplicity.
 U64FlatHashDict a := {
         data : List (Elem a),
         metadata : List I8,
@@ -30,8 +34,8 @@ U64FlatHashDict a := {
 
 # This requires an element because we don't know how to generate a default elem.
 # For simplicity for now, I am just storing the default value.
-empty : Wyhash.Seed, a -> U64FlatHashDict a
-empty = \seed, default ->
+empty : a -> U64FlatHashDict a
+empty = \default ->
     defaultElem = T 0 default
 
     $U64FlatHashDict
@@ -40,7 +44,7 @@ empty = \seed, default ->
             metadata: [],
             size: 0,
             default: defaultElem,
-            seed,
+            seed: Wyhash.createSeed 0x0123_4567_89AB_CDEF,
         }
 
 contains : U64FlatHashDict a, U64 -> Bool
@@ -71,9 +75,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     index =
         when h1Key % Num.toU64 (List.len data) is
             Ok i ->
-                # TODO: Enable once toNat is added to roc
-                # indexHelper metadata (Num.toNat i)
-                42
+                indexHelper metadata (Num.toNat i)
 
             Err DivByZero ->
                 # This should never happen. Panic.
@@ -123,7 +125,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
         if List.isEmpty data then
             defaultSlotCount
         else
-            2 * List.len data
+            2 * (List.len data)
 
     newDict = $U64FlatHashDict
         {
@@ -165,4 +167,4 @@ h1 = \hashKey ->
 
 h2 : U64 -> I8
 h2 = \hashKey ->
-    Num.toI8 (Num.bitwiseAnd hashKey 127)
+    Num.toI8 (Num.bitwiseAnd hashKey 0b0111_1111)
