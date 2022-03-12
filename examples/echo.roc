@@ -17,20 +17,20 @@ tick =
 echo : Str -> Str
 echo = \shout ->
     dict = U64FlatHashDict.empty ""
-        |> U64FlatHashDict.insert 10 "          "
-        |> U64FlatHashDict.insert 9 "         "
-        |> U64FlatHashDict.insert 8 "        "
-        |> U64FlatHashDict.insert 7 "       "
-        |> U64FlatHashDict.insert 6 "      "
-        |> U64FlatHashDict.insert 5 "     "
+        |> U64FlatHashDict.insert 10 "~~~~~~~~~~"
+        |> U64FlatHashDict.insert 9 "---------"
+        |> U64FlatHashDict.insert 8 "~~~~~~~~"
+        |> U64FlatHashDict.insert 7 "-------"
+        |> U64FlatHashDict.insert 6 "~~~~~~"
+        |> U64FlatHashDict.insert 5 "-----"
         |> U64FlatHashDict.insert 12 "garbage"
         |> U64FlatHashDict.insert 4 "wrong"
-        |> U64FlatHashDict.insert 3 "   "
-        |> U64FlatHashDict.insert 2 "  "
-        |> U64FlatHashDict.insert 1 " "
+        |> U64FlatHashDict.insert 3 "---"
+        |> U64FlatHashDict.insert 2 "~~"
+        |> U64FlatHashDict.insert 1 "-"
         |> U64FlatHashDict.insert 0 ""
         |> U64FlatHashDict.remove 12
-        |> U64FlatHashDict.insert 4 "    "
+        |> U64FlatHashDict.insert 4 "~~~~"
 
     silence = \cache, length ->
         spaceInUtf8 = 32
