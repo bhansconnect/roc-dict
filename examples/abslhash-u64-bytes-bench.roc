@@ -1,4 +1,4 @@
-app "wyhash-to-bytes-bench"
+app "wyhash-u64-bytes-bench"
     packages { pf: "../roc/examples/benchmarks/platform" }
     imports [ pf.Task, AbslHash ]
     provides [ main ] to pf
