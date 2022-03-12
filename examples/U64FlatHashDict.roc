@@ -72,19 +72,18 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
-    index =
-        indexHelper metadata data h2Key key (Num.toNat h1Key)
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T _ index ->
+            $U64FlatHashDict
+                {
+                    data: List.set data index (T key value),
+                    metadata: List.set metadata index h2Key,
+                    size: size + 1,
+                    default,
+                    seed,
+                }
 
-    $U64FlatHashDict
-        {
-            data: List.set data index (T key value),
-            metadata: List.set metadata index h2Key,
-            size: size + 1,
-            default,
-            seed,
-        }
-
-indexHelper : List I8, List (Elem a), I8, U64, Nat -> Nat
+indexHelper : List I8, List (Elem a), I8, U64, Nat -> [T [Found a, NotFound] Nat]
 indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
@@ -93,7 +92,7 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
         Ok md ->
             if md < 0 then
                 # Deleted or empty slot
-                index
+                T NotFound index
             else if md == h2Key then
                 # This is potentially a match.
                 # Check data for if it is a match.
@@ -101,21 +100,21 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
                     Ok (T k v) ->
                         if k == key then
                             # we have a match, return it's index
-                            index
+                            T (Found v) index
                         else
                             # no match, keep checking.
                             indexHelper metadata data h2Key key (index + 1)
 
                     Err OutOfBounds ->
                         # not possible. just panic
-                        0 - 1
+                        T NotFound (0 - 1)
             else
                 # Used slot, check next slot
                 indexHelper metadata data h2Key key (index + 1)
 
         Err OutOfBounds ->
             # not possible. just panic
-            0 - 1
+            T NotFound (0 - 1)
 
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
