@@ -1,5 +1,5 @@
 interface U64FlatHashDict
-    exposes [ U64FlatHashDict, empty, insert, contains, get, remove, clear ]
+    exposes [ U64FlatHashDict, empty, insert, contains, get, remove, clear, capacity, len ]
     imports [ Wyhash ]
 
 # This is based off of absl::flat_hash_map.
@@ -72,6 +72,14 @@ insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
 insert = \dict, key, value ->
     insertInternal (maybeRehash dict) key value
 
+len : U64FlatHashDict a -> Nat
+len = \$U64FlatHashDict { size } ->
+    size
+
+capacity : U64FlatHashDict a -> Nat
+capacity = \$U64FlatHashDict { data } ->
+    List.len data
+
 remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
 remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
@@ -80,7 +88,7 @@ remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
 
     when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found _) index ->
-            T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }) True
+            T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size: (size - 1), default, seed }) True
 
         _ ->
             T ($U64FlatHashDict { data, metadata, size, default, seed }) False
@@ -224,7 +232,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                 {
                     data: List.repeat default newLen,
                     metadata: List.repeat emptySlot newLen,
-                    size,
+                    size: 0,
                     default,
                     seed,
                 }
