@@ -201,7 +201,7 @@ maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
             cap - (shiftRightZfByHack 3 cap)
-    if size == maxLoadCap then
+    if size >= maxLoadCap then
         rehash ($U64FlatHashDict { data, metadata, size, default, seed })
     else
         $U64FlatHashDict { data, metadata, size, default, seed }
