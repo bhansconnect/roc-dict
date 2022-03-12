@@ -25,3 +25,10 @@ executable(
   dependencies: [],
   link_with: [],
 )
+
+executable(
+  'abslhash-u64-bench',
+  'src/abslhash-u64-bench.cc',
+  dependencies: [absl_hash_dep],
+  link_with: [],
+)
