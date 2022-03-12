@@ -128,8 +128,8 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
 
     when List.get metadata index is
         Ok md ->
-            if md < 0 then
-                # Deleted or empty slot
+            if md == emptySlot then
+                # Empty slot no possibility of the element
                 T NotFound index
             else if md == h2Key then
                 # This is potentially a match.
@@ -147,7 +147,7 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
                         # not possible. just panic
                         T NotFound (0 - 1)
             else
-                # Used slot, check next slot
+                # Used or deleted slot, check next slot
                 indexHelper metadata data h2Key key (index + 1)
 
         Err OutOfBounds ->
