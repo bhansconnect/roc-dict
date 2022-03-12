@@ -29,8 +29,8 @@ echo = \shout ->
         |> U64FlatHashDict.insert 2 "  "
         |> U64FlatHashDict.insert 1 " "
         |> U64FlatHashDict.insert 0 ""
-        # |> U64FlatHashDict.remove 12
-        # |> U64FlatHashDict.insert 4 "    "
+        |> U64FlatHashDict.remove 12
+        |> U64FlatHashDict.insert 4 "    "
 
     silence = \cache, length ->
         spaceInUtf8 = 32

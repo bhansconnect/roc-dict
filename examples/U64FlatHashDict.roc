@@ -48,23 +48,41 @@ empty = \default ->
         }
 
 contains : U64FlatHashDict a, U64 -> Bool
-contains = \dict, key ->
-    # TODO
-    False
+contains = \$U64FlatHashDict { data, metadata, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T (Found _) _ ->
+            True
+        _ ->
+            False
 
 get : U64FlatHashDict a, U64 -> Option a
-get = \dict, key ->
-    # TODO
-    None
+get = \$U64FlatHashDict { data, metadata, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T (Found v) _ ->
+            Some v
+        _ ->
+            None
 
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
 insert = \dict, key, value ->
     insertInternal (maybeRehash dict) key value
 
 remove : U64FlatHashDict a, U64 -> U64FlatHashDict a
-remove = \dict, key ->
-    # TODO
-    dict
+remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T (Found _) index ->
+            $U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }
+        _ ->
+            $U64FlatHashDict { data, metadata, size, default, seed }
 
 # Does insertion without potentially rehashing.
 insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
