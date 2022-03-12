@@ -30,6 +30,7 @@ echo = \shout ->
         |> U64FlatHashDict.insert 1 "-"
         |> U64FlatHashDict.insert 0 ""
         |> U64FlatHashDict.remove 12
+        |> (\T rdict _ -> rdict)
         |> U64FlatHashDict.insert 4 "~~~~"
 
     silence = \cache, length ->

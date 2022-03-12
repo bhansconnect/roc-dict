@@ -1,5 +1,5 @@
 interface U64FlatHashDict
-    exposes [ U64FlatHashDict, empty, insert, contains, get, remove ]
+    exposes [ U64FlatHashDict, empty, insert, contains, get, remove, clear ]
     imports [ Wyhash ]
 
 # This is based off of absl::flat_hash_map.
@@ -72,7 +72,7 @@ insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
 insert = \dict, key, value ->
     insertInternal (maybeRehash dict) key value
 
-remove : U64FlatHashDict a, U64 -> U64FlatHashDict a
+remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
 remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
@@ -80,10 +80,27 @@ remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
 
     when indexHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found _) index ->
-            $U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }
+            T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }) True
 
         _ ->
-            $U64FlatHashDict { data, metadata, size, default, seed }
+            T ($U64FlatHashDict { data, metadata, size, default, seed }) False
+
+clear : U64FlatHashDict a -> U64FlatHashDict a
+clear = \$U64FlatHashDict { data, metadata, default, seed } ->
+    cap = List.len data
+    # Only clear large allocations.
+    if cap > 128 * 8 then
+        when default is
+            T _ v ->
+                empty v
+    else
+        $U64FlatHashDict {
+            data: List.map data (\_ -> default),
+            metadata: List.map metadata (\_ -> emptySlot),
+            size: 0,
+            default,
+            seed
+        }
 
 # Does insertion without potentially rehashing.
 insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
