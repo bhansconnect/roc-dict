@@ -118,7 +118,7 @@ hashBytes = \$Seed seed, list ->
     ab =
         if remaining2 > 8 then
             { a: loadU64At list index2, b: loadU64At list (index2 + remaining2 - 8) }
-        else if remaining2 > 4 then
+        else if remaining2 > 3 then
             { a: loadU32At list index2, b: loadU32At list (index2 + remaining2 - 4) }
         else if remaining2 > 0 then
             p1 = Num.toU64 (getByte list index2)
@@ -156,7 +156,7 @@ hashBytesHelper64 = \ds, cs, list, index, remaining ->
     nextIndex = index + 64
     nextRemaining = remaining - 64
 
-    if remaining > 64 then
+    if nextRemaining > 64 then
         hashBytesHelper64 nextDS nextCS list nextIndex nextRemaining
     else
         { state: Num.bitwiseXor nextCS nextDS, index: nextIndex, remaining: nextRemaining }
