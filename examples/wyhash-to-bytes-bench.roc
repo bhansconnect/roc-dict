@@ -15,7 +15,7 @@ main =
     hashHelper base iters (List.repeat 0 8)
         |> Num.toI64
         |> Task.putInt
-    
+
 setBytes : List U8, U64 -> List U8
 setBytes = \oldList, val ->
     # TODO: remove Num.toU8 once bitwiseAnd works correctly.
@@ -27,6 +27,7 @@ setBytes = \oldList, val ->
     p5 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 40 val))
     p6 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 48 val))
     p7 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 56 val))
+
     oldList
         |> List.set 0 p0
         |> List.set 1 p1
@@ -44,4 +45,5 @@ hashHelper = \val, iters, list ->
     else
         newList = setBytes list val
         next = Wyhash.hashBytes seed newList
+
         hashHelper next (iters - 1) newList

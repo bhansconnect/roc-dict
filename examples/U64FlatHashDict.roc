@@ -20,6 +20,10 @@ Option a : [ Some a, None ]
 
 Elem a : [ T U64 a ]
 
+# Metadata should be grouped. This helps make loading faster.
+# One memory load would then load 8 possible indexes.
+# These could then be compared with vector instructions (if added to roc).
+# To start just making it non-grouped for simplicity.
 U64FlatHashDict a := {
         data : List (Elem a),
         metadata : List I8,
@@ -30,8 +34,8 @@ U64FlatHashDict a := {
 
 # This requires an element because we don't know how to generate a default elem.
 # For simplicity for now, I am just storing the default value.
-empty : Wyhash.Seed, a -> U64FlatHashDict a
-empty = \seed, default ->
+empty : a -> U64FlatHashDict a
+empty = \default ->
     defaultElem = T 0 default
 
     $U64FlatHashDict
@@ -40,27 +44,51 @@ empty = \seed, default ->
             metadata: [],
             size: 0,
             default: defaultElem,
-            seed,
+            seed: Wyhash.createSeed 0x0123_4567_89AB_CDEF,
         }
 
 contains : U64FlatHashDict a, U64 -> Bool
-contains = \dict, key ->
-    # TODO
-    False
+contains = \$U64FlatHashDict { data, metadata, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T (Found _) _ ->
+            True
+
+        _ ->
+            False
 
 get : U64FlatHashDict a, U64 -> Option a
-get = \dict, key ->
-    # TODO
-    None
+get = \$U64FlatHashDict { data, metadata, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T (Found v) _ ->
+            Some v
+
+        _ ->
+            None
 
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
 insert = \dict, key, value ->
     insertInternal (maybeRehash dict) key value
 
 remove : U64FlatHashDict a, U64 -> U64FlatHashDict a
-remove = \dict, key ->
-    # TODO
-    dict
+remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T (Found _) index ->
+            $U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }
+
+        _ ->
+            $U64FlatHashDict { data, metadata, size, default, seed }
 
 # Does insertion without potentially rehashing.
 insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
@@ -68,40 +96,51 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
-    index =
-        when h1Key % Num.toU64 (List.len data) is
-            Ok i ->
-                # TODO: Enable once toNat is added to roc
-                # indexHelper metadata (Num.toNat i)
-                42
 
-            Err DivByZero ->
-                # This should never happen. Panic.
-                0 - 1
+    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+        T _ index ->
+            $U64FlatHashDict
+                {
+                    data: List.set data index (T key value),
+                    metadata: List.set metadata index h2Key,
+                    size: size + 1,
+                    default,
+                    seed,
+                }
 
-    $U64FlatHashDict
-        {
-            data: List.set data index (T key value),
-            metadata: List.set metadata index h2Key,
-            size,
-            default,
-            seed,
-        }
+indexHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
+indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
+    # we know that the length data is always a power of 2.
+    # as such, we can just and with the length - 1.
+    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
 
-indexHelper : List I8, Nat -> Nat
-indexHelper = \metadata, index ->
     when List.get metadata index is
         Ok md ->
             if md < 0 then
                 # Deleted or empty slot
-                index
+                T NotFound index
+            else if md == h2Key then
+                # This is potentially a match.
+                # Check data for if it is a match.
+                when List.get data index is
+                    Ok (T k v) ->
+                        if k == key then
+                            # we have a match, return it's index
+                            T (Found v) index
+                        else
+                            # no match, keep checking.
+                            indexHelper metadata data h2Key key (index + 1)
+
+                    Err OutOfBounds ->
+                        # not possible. just panic
+                        T NotFound (0 - 1)
             else
                 # Used slot, check next slot
-                indexHelper metadata (index + 1)
+                indexHelper metadata data h2Key key (index + 1)
 
         Err OutOfBounds ->
-            # loop back to begining of list
-            indexHelper metadata 0
+            # not possible. just panic
+            T NotFound (0 - 1)
 
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
@@ -119,22 +158,30 @@ maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
 
 rehash : U64FlatHashDict a -> U64FlatHashDict a
 rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
-    newLen =
-        if List.isEmpty data then
-            defaultSlotCount
-        else
-            2 * List.len data
+    if List.isEmpty data then
+        newLen = defaultSlotCount
 
-    newDict = $U64FlatHashDict
-        {
-            data: List.repeat default newLen,
-            metadata: List.repeat emptySlot newLen,
-            size,
-            default,
-            seed,
-        }
+        $U64FlatHashDict
+            {
+                data: List.repeat default newLen,
+                metadata: List.repeat emptySlot newLen,
+                size,
+                default,
+                seed,
+            }
+    else
+        newLen = 2 * List.len data
+        newDict =
+            $U64FlatHashDict
+                {
+                    data: List.repeat default newLen,
+                    metadata: List.repeat emptySlot newLen,
+                    size,
+                    default,
+                    seed,
+                }
 
-    rehashHelper newDict metadata data 0
+        rehashHelper newDict metadata data 0
 
 rehashHelper : U64FlatHashDict a, List I8, List (Elem a), Nat -> U64FlatHashDict a
 rehashHelper = \dict, metadata, data, index ->
@@ -165,4 +212,4 @@ h1 = \hashKey ->
 
 h2 : U64 -> I8
 h2 = \hashKey ->
-    Num.toI8 (Num.bitwiseAnd hashKey 127)
+    Num.toI8 (Num.bitwiseAnd hashKey 0b0111_1111)

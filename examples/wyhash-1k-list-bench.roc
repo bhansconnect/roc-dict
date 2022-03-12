@@ -20,4 +20,5 @@ hashHelper = \hash, remaining, val ->
     else
         nextVal = List.set val 0 (Num.toU8 (Num.bitwiseAnd 0xFF remaining))
         next = Wyhash.combine hash (Wyhash.hashBytes seed nextVal)
+
         hashHelper next (remaining - 1) nextVal

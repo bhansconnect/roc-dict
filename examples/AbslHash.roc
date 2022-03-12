@@ -5,7 +5,6 @@ interface AbslHash
 # AbslHash is a modified form of wyhash that is theoretically faster.
 # It cuts some corners and uses a larger group size
 # https://raw.githubusercontent.com/abseil/abseil-cpp/master/absl/hash/internal/low_level_hash.cc
-
 salt0 : U64
 salt0 = 0x243F6A8885A308D3
 salt1 : U64
@@ -22,7 +21,7 @@ shiftRightZfByHack = \by, val ->
 
 mix : U64, U64 -> U64
 mix = \a, b ->
-    r = (Num.toU128 a) * (Num.toU128 b)
+    r = Num.toU128 a * Num.toU128 b
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
     upperR = shiftRightZfByHack 64 r
 
@@ -47,9 +46,12 @@ rand = \$Seed seed ->
 getByte : List U8, Nat -> U8
 getByte = \list, index ->
     when List.get list index is
-        Ok b -> b
+        Ok b ->
+            b
+
         # Panic on out of range access.
-        _ -> 0 - 1
+        _ ->
+            0 - 1
 
 # Get the next 8 bytes as a U64
 loadU64At : List U8, Nat -> U64
@@ -73,6 +75,7 @@ hashU64 = \$Seed seed, key ->
     b = shiftRightZfByHack 32 key
     w = mix (Num.bitwiseXor a salt1) (Num.bitwiseXor b state0)
     z = Num.bitwiseXor salt1 8
+
     mix w z
 
 hashBytes : Seed, List U8 -> U64
@@ -86,33 +89,34 @@ hashBytes = \$Seed seed, list ->
         if remaining0 > 64 then
             hashBytesHelper64 state0 state0 list index0 remaining0
         else
-            {state: state0, index: index0, remaining: remaining0}
-    
+            { state: state0, index: index0, remaining: remaining0 }
+
     s2 =
         hashBytesHelper16 s1.state list s1.index s1.remaining
     state2 = s2.state
     index2 = s2.index
     remaining2 = s2.remaining
-    
 
     ab =
         if remaining2 > 8 then
-            {a: loadU64At list index2, b: loadU64At list (index2+remaining2-8) }
+            { a: loadU64At list index2, b: loadU64At list (index2 + remaining2 - 8) }
         else if remaining2 > 4 then
-            {a: loadU32At list index2, b: loadU32At list (index2+remaining2-4) }
+            { a: loadU32At list index2, b: loadU32At list (index2 + remaining2 - 4) }
         else if remaining2 > 0 then
             p1 = Num.toU64 (getByte list index2)
-            p2 = Num.toU64 (getByte list (index2 + (shiftRightZfByHack 1 remaining2)))
+            p2 = Num.toU64 (getByte list (index2 + shiftRightZfByHack 1 remaining2))
             p3 = Num.toU64 (getByte list (index2 + remaining2 - 1))
             a = Num.bitwiseOr p3 (Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2))
-            {a, b: 0}
+
+            { a, b: 0 }
         else
-            {a: 0, b: 0}
+            { a: 0, b: 0 }
     w = mix (Num.bitwiseXor ab.a salt1) (Num.bitwiseXor ab.b state2)
     z = Num.bitwiseXor salt1 (Num.toU64 startingLen)
+
     mix w z
 
-hashBytesHelper64 : U64, U64, List U8, Nat, Nat -> { state: U64, index: Nat, remaining: Nat }
+hashBytesHelper64 : U64, U64, List U8, Nat, Nat -> { state : U64, index : Nat, remaining : Nat }
 hashBytesHelper64 = \ds, cs, list, index, remaining ->
     a = loadU64At list index
     b = loadU64At list (index + 8)
@@ -133,17 +137,19 @@ hashBytesHelper64 = \ds, cs, list, index, remaining ->
 
     nextIndex = index + 64
     nextRemaining = remaining - 64
+
     if remaining > 64 then
         hashBytesHelper64 nextDS nextCS list nextIndex nextRemaining
     else
-        {state: Num.bitwiseXor nextCS nextDS, index: nextIndex, remaining: nextRemaining}
+        { state: Num.bitwiseXor nextCS nextDS, index: nextIndex, remaining: nextRemaining }
 
-hashBytesHelper16 : U64, List U8, Nat, Nat -> { state: U64, index: Nat, remaining: Nat }
+hashBytesHelper16 : U64, List U8, Nat, Nat -> { state : U64, index : Nat, remaining : Nat }
 hashBytesHelper16 = \state, list, index, remaining ->
     if remaining > 16 then
         a = loadU64At list index
         b = loadU64At list (index + 8)
         nextState = mix (Num.bitwiseXor a salt1) (Num.bitwiseXor b state)
+
         hashBytesHelper16 nextState list (index + 16) (remaining - 16)
     else
-        {state, index, remaining}
+        { state, index, remaining }

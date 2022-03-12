@@ -15,7 +15,6 @@ main =
     hashHelper base iters
         |> Num.toI64
         |> Task.putInt
-    
 
 hashHelper : U64, I64 -> U64
 hashHelper = \val, iters ->
@@ -23,4 +22,5 @@ hashHelper = \val, iters ->
         val
     else
         next = Wyhash.hashU64 seed val
+
         hashHelper next (iters - 1)
