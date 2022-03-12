@@ -4,12 +4,6 @@ interface U64FlatHashDict
 
 # This is based off of absl::flat_hash_map.
 # It is simplified to make it nicer to write in roc.
-defaultSlotCount : Nat
-defaultSlotCount = 64
-
-maxLoadFactor : F64
-maxLoadFactor = 0.875
-
 emptySlot : I8
 emptySlot = -128
 deletedSlot : I8
@@ -25,6 +19,7 @@ Elem a : [ T U64 a ]
 # These could then be compared with vector instructions (if added to roc).
 # To start just making it non-grouped for simplicity.
 U64FlatHashDict a := {
+        # TODO: switch to power of 2 minus 1 sizes of slots and u64 for metadata.
         data : List (Elem a),
         metadata : List I8,
         size : Nat,
@@ -142,29 +137,29 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
             # not possible. just panic
             T NotFound (0 - 1)
 
+shiftRightZfByHack = \by, val ->
+    Num.shiftRightBy by val
+
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
 maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
-    when Num.toFloat size / Num.toFloat (List.len data) is
-        Ok loadFactor ->
-            if loadFactor >= maxLoadFactor then
-                rehash ($U64FlatHashDict { data, metadata, size, default, seed })
-            else
-                $U64FlatHashDict { data, metadata, size, default, seed }
-
-        Err DivByZero ->
-            rehash ($U64FlatHashDict { data, metadata, size, default, seed })
+    cap = List.len data
+    maxLoadCap =
+            # This is 7/8 * capacity, which is the max load factor.
+            cap - (shiftRightZfByHack 3 cap)
+    if size == maxLoadCap then
+        rehash ($U64FlatHashDict { data, metadata, size, default, seed })
+    else
+        $U64FlatHashDict { data, metadata, size, default, seed }
 
 rehash : U64FlatHashDict a -> U64FlatHashDict a
 rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     if List.isEmpty data then
-        newLen = defaultSlotCount
-
         $U64FlatHashDict
             {
-                data: List.repeat default newLen,
-                metadata: List.repeat emptySlot newLen,
+                data: List.repeat default 8,
+                metadata: List.repeat emptySlot 8,
                 size,
                 default,
                 seed,
@@ -208,7 +203,7 @@ rehashHelper = \dict, metadata, data, index ->
 
 h1 : U64 -> U64
 h1 = \hashKey ->
-    Num.shiftRightZfBy 7 hashKey
+    shiftRightZfByHack 7 hashKey
 
 h2 : U64 -> I8
 h2 = \hashKey ->
