@@ -1,6 +1,6 @@
 app "echo"
     packages { pf: "../roc/examples/interactive/cli-platform" }
-    imports [ pf.Stdin, pf.Stdout, pf.Task, U64FlatDict, U64FlatHashDict, Wyhash ]
+    imports [ pf.Stdin, pf.Stdout, pf.Task, U64FlatHashDict ]
     provides [ main ] to pf
 
 # TODO change examples to some form of benchmark.
@@ -16,26 +16,26 @@ tick =
 
 echo : Str -> Str
 echo = \shout ->
-    dict = U64FlatDict.empty {}
-        |> U64FlatDict.insert 10 "          "
-        |> U64FlatDict.insert 9 "         "
-        |> U64FlatDict.insert 8 "        "
-        |> U64FlatDict.insert 7 "       "
-        |> U64FlatDict.insert 6 "      "
-        |> U64FlatDict.insert 5 "     "
-        |> U64FlatDict.insert 12 "garbage"
-        |> U64FlatDict.insert 4 "wrong"
-        |> U64FlatDict.insert 3 "   "
-        |> U64FlatDict.insert 2 "  "
-        |> U64FlatDict.insert 1 " "
-        |> U64FlatDict.insert 0 ""
-        |> U64FlatDict.remove 12
-        |> U64FlatDict.insert 4 "    "
+    dict = U64FlatHashDict.empty ""
+        |> U64FlatHashDict.insert 10 "          "
+        |> U64FlatHashDict.insert 9 "         "
+        |> U64FlatHashDict.insert 8 "        "
+        |> U64FlatHashDict.insert 7 "       "
+        |> U64FlatHashDict.insert 6 "      "
+        |> U64FlatHashDict.insert 5 "     "
+        |> U64FlatHashDict.insert 12 "garbage"
+        |> U64FlatHashDict.insert 4 "wrong"
+        |> U64FlatHashDict.insert 3 "   "
+        |> U64FlatHashDict.insert 2 "  "
+        |> U64FlatHashDict.insert 1 " "
+        |> U64FlatHashDict.insert 0 ""
+        # |> U64FlatHashDict.remove 12
+        # |> U64FlatHashDict.insert 4 "    "
 
     silence = \cache, length ->
         spaceInUtf8 = 32
 
-        when U64FlatDict.get cache (Num.toU64 length) is
+        when U64FlatHashDict.get cache (Num.toU64 length) is
             Some val ->
                 Str.toUtf8 val
 

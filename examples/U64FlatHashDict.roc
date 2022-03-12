@@ -73,43 +73,55 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     h1Key = h1 hashKey
     h2Key = h2 hashKey
     index =
-        when h1Key % Num.toU64 (List.len data) is
-            Ok i ->
-                indexHelper metadata (Num.toNat i)
-
-            Err DivByZero ->
-                # This should never happen. Panic.
-                0 - 1
+        indexHelper metadata data h2Key key (Num.toNat h1Key)
 
     $U64FlatHashDict
         {
             data: List.set data index (T key value),
             metadata: List.set metadata index h2Key,
-            size,
+            size: size + 1,
             default,
             seed,
         }
 
-indexHelper : List I8, Nat -> Nat
-indexHelper = \metadata, index ->
+indexHelper : List I8, List (Elem a), I8, U64, Nat -> Nat
+indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
+    # we know that the length data is always a power of 2.
+    # as such, we can just and with the length - 1.
+    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
     when List.get metadata index is
         Ok md ->
             if md < 0 then
                 # Deleted or empty slot
                 index
+            else if md == h2Key then
+                # This is potentially a match.
+                # Check data for if it is a match.
+                when List.get data index is
+                    Ok (T k v) ->
+                        if k == key then
+                            # we have a match, return it's index
+                            index
+                        else
+                            # no match, keep checking.
+                            indexHelper metadata data h2Key key (index + 1)
+
+                    Err OutOfBounds ->
+                        # not possible. just panic
+                        0 - 1
             else
                 # Used slot, check next slot
-                indexHelper metadata (index + 1)
+                indexHelper metadata data h2Key key (index + 1)
 
         Err OutOfBounds ->
-            # loop back to begining of list
-            indexHelper metadata 0
+            # not possible. just panic
+            0 - 1
 
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
 maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
-    when Num.toFloat size / Num.toFloat (List.len data) is
+    when (Num.toFloat size) / (Num.toFloat (List.len data)) is
         Ok loadFactor ->
             if loadFactor >= maxLoadFactor then
                 rehash ($U64FlatHashDict { data, metadata, size, default, seed })
@@ -121,22 +133,28 @@ maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
 
 rehash : U64FlatHashDict a -> U64FlatHashDict a
 rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
-    newLen =
-        if List.isEmpty data then
-            defaultSlotCount
-        else
-            2 * (List.len data)
-
-    newDict = $U64FlatHashDict
-        {
-            data: List.repeat default newLen,
-            metadata: List.repeat emptySlot newLen,
-            size,
-            default,
-            seed,
-        }
-
-    rehashHelper newDict metadata data 0
+    if List.isEmpty data then
+        newLen = defaultSlotCount
+        $U64FlatHashDict
+            {
+                data: List.repeat default newLen,
+                metadata: List.repeat emptySlot newLen,
+                size,
+                default,
+                seed,
+            }
+    else
+        newLen = 2 * (List.len data)
+        newDict =
+            $U64FlatHashDict
+                {
+                    data: List.repeat default newLen,
+                    metadata: List.repeat emptySlot newLen,
+                    size,
+                    default,
+                    seed,
+                }
+        rehashHelper newDict metadata data 0
 
 rehashHelper : U64FlatHashDict a, List I8, List (Elem a), Nat -> U64FlatHashDict a
 rehashHelper = \dict, metadata, data, index ->
