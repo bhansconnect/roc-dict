@@ -1,4 +1,7 @@
 #!/bin/sh
 
-clang++ bench.cc -o bench -O3 -std=c++17 -stdlib=libc++ -g
-clang++ bench-1k-list.cc -o bench-1k-list -O3 -std=c++17 -stdlib=libc++ -g
+SCRIPT_DIR=$(cd $(dirname "${BASH_SOURCE[0]}") && pwd)
+
+(cd $SCRIPT_DIR && \
+    ([ -d build ] || meson setup build --buildtype release) && \
+    meson compile -C build)

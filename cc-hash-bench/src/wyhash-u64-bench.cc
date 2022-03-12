@@ -5,21 +5,18 @@
 #include "wyhash.h"
 
 // This is not a super robust benchmark. Just copying what we do in roc.
-constexpr int SIZE = 1024;
 
 int main() {
-  uint64_t iters;
+  int64_t iters;
   std::cin >> iters;
 
   uint64_t seed = 0x1234567890ABCDEF;
-  uint8_t data[SIZE];
-  std::fill(data, data + SIZE, 0x77);
-  int64_t hash = 0;
+  int64_t hash = 0xFEDCBA0987654321;
   auto start = std::chrono::high_resolution_clock::now();
-  for (int64_t remaining = iters; remaining > 0; --remaining) {
-    data[0] = remaining & 0xFF;
-    int64_t data_hash = wyhash(&data, SIZE, seed, _wyp);
-    hash = wyhash64(hash, data_hash);
+  if (iters > 0) {
+    for (int64_t i = 0; i < iters; ++i) {
+      hash = wyhash(&hash, 8, seed, _wyp);
+    }
   }
   std::cout << hash << '\n';
   auto stop = std::chrono::high_resolution_clock::now();
