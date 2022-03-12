@@ -39,3 +39,10 @@ executable(
   dependencies: [absl_hash_dep],
   link_with: [],
 )
+
+executable(
+  'hashdict-insert-remove-bench',
+  'src/hashdict-insert-remove-bench.cc',
+  dependencies: [absl_container_dep, absl_hash_dep],
+  link_with: [],
+)
