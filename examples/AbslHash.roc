@@ -56,16 +56,34 @@ getByte = \list, index ->
 # Get the next 8 bytes as a U64
 loadU64At : List U8, Nat -> U64
 loadU64At = \list, index ->
-    # These are dummies until roc can load a U64 from a list of bytes properly.
-    # This should take about the same amount of time to run.
-    Num.toU64 (getByte list index)
+    # TODO: Remove the and in the future, it shouldn't be needed.
+    p1 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list index))
+    p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 1)))
+    p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 2)))
+    p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
+    p5 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 4)))
+    p6 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 5)))
+    p7 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 6)))
+    p8 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 7)))
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
+    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
+    c = Num.bitwiseOr (Num.shiftLeftBy 32 p5) (Num.shiftLeftBy 40 p6)
+    d = Num.bitwiseOr (Num.shiftLeftBy 48 p7) (Num.shiftLeftBy 56 p8)
+
+    Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
 
 # Get the next 4 bytes as a U64
 loadU32At : List U8, Nat -> U64
 loadU32At = \list, index ->
-    # These are dummies until roc can load a U64 from a list of bytes properly.
-    # This should take about the same amount of time to run.
-    Num.toU64 (getByte list index)
+    # TODO: Remove the and in the future, it shouldn't be needed.
+    p1 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list index))
+    p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 1)))
+    p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 2)))
+    p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
+    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
+
+    Num.bitwiseOr a b
 
 # Direct implementation of what for happen with hashBytes but for U64
 hashU64 : Seed, U64 -> U64
