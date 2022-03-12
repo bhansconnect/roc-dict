@@ -48,7 +48,7 @@ contains = \$U64FlatHashDict { data, metadata, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found _) _ ->
             True
 
@@ -61,7 +61,7 @@ get = \$U64FlatHashDict { data, metadata, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found v) _ ->
             Some v
 
@@ -78,7 +78,7 @@ remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
         T (Found _) index ->
             T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size, default, seed }) True
 
@@ -109,7 +109,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexInsertHelper metadata data h2Key key (Num.toNat h1Key) is
         T _ index ->
             $U64FlatHashDict
                 {
@@ -120,8 +120,44 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
                     seed,
                 }
 
-indexHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
-indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
+indexInsertHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
+indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex ->
+    # For inserting, we can use deleted indices.
+    # we know that the length data is always a power of 2.
+    # as such, we can just and with the length - 1.
+    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
+
+    when List.get metadata index is
+        Ok md ->
+            if md < 0 then
+                # Empty or deleted slot no possibility of the element
+                T NotFound index
+            else if md == h2Key then
+                # This is potentially a match.
+                # Check data for if it is a match.
+                when List.get data index is
+                    Ok (T k v) ->
+                        if k == key then
+                            # we have a match, return it's index
+                            T (Found v) index
+                        else
+                            # no match, keep checking.
+                            indexInsertHelper metadata data h2Key key (index + 1)
+
+                    Err OutOfBounds ->
+                        # not possible. just panic
+                        T NotFound (0 - 1)
+            else
+                # Used slot, check next slot
+                indexInsertHelper metadata data h2Key key (index + 1)
+
+        Err OutOfBounds ->
+            # not possible. just panic
+            T NotFound (0 - 1)
+
+indexFindHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
+indexFindHelper = \metadata, data, h2Key, key, oversizedIndex ->
+    # For finding we have to scan past deleted items.
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
     index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
@@ -141,14 +177,14 @@ indexHelper = \metadata, data, h2Key, key, oversizedIndex ->
                             T (Found v) index
                         else
                             # no match, keep checking.
-                            indexHelper metadata data h2Key key (index + 1)
+                            indexFindHelper metadata data h2Key key (index + 1)
 
                     Err OutOfBounds ->
                         # not possible. just panic
                         T NotFound (0 - 1)
             else
                 # Used or deleted slot, check next slot
-                indexHelper metadata data h2Key key (index + 1)
+                indexFindHelper metadata data h2Key key (index + 1)
 
         Err OutOfBounds ->
             # not possible. just panic
