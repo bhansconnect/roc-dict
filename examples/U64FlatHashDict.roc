@@ -5,7 +5,7 @@ interface U64FlatHashDict
 # This is based off of absl::flat_hash_map.
 # It is simplified to make it nicer to write in roc.
 allEmpty : I64
-allEmpty = -1
+allEmpty = Num.toI64 0x8080_8080_8080_8080
 emptySlot : I8
 emptySlot = -128
 deletedSlot : I8
@@ -216,12 +216,12 @@ probeMDHelper = \md, data, key, h2Key, probeI, { slotIndex, offset, loaded }, de
             probeMDHelper md data key h2Key probeI { slotIndex, offset: (offset + 1), loaded } deletedIndex
     else
         # The offset is too large, which means we need to load the next chunk of metadata
-        newSlotIndex = Num.bitwiseAnd (slotIndex + probeI) (List.len md - 1)
-        newProbI = probeI + 1
+        newProbeI = probeI + 1
+        newSlotIndex = Num.bitwiseAnd (slotIndex + newProbeI) (List.len md - 1)
         newOffset = 0
-        when List.get md slotIndex is
+        when List.get md newSlotIndex is
             Ok newLoaded ->
-                probeMDHelper md data key h2Key newProbI { slotIndex: newSlotIndex, offset: newOffset, loaded: newLoaded } deletedIndex
+                probeMDHelper md data key h2Key newProbeI { slotIndex: newSlotIndex, offset: newOffset, loaded: newLoaded } deletedIndex
             Err OutOfBounds ->
                 # not possible. just panic
                 NotFound { slotIndex: 0 - 1, offset: 0, loaded: 0 }
