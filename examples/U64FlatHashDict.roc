@@ -260,7 +260,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                 {
                     data: List.repeat default (2 * List.len data),
                     metadata: List.repeat allEmpty (2 * List.len metadata),
-                    size: 0,
+                    size,
                     default,
                     seed,
                 }
