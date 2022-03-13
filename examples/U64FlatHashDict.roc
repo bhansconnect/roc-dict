@@ -17,6 +17,8 @@ deletedSlot = -2
 groupSize : Nat
 groupSize = 8
 
+mulGroupSize = mul8
+
 Option a : [ Some a, None ]
 
 Elem a : [ T U64 a ]
@@ -121,7 +123,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     h2Key = h2 hashKey
     when probeMD metadata data key h1Key h2Key is
         Found { slotIndex, offset } _ ->
-            dataIndex = slotIndex * groupSize + offset
+            dataIndex = (mulGroupSize slotIndex) + offset
             $U64FlatHashDict
                 {
                     data: List.set data dataIndex (T key value),
@@ -131,7 +133,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
                     seed,
                 }
         NotFound { slotIndex, offset, loaded } ->
-            dataIndex = slotIndex * groupSize + offset
+            dataIndex = (mulGroupSize slotIndex) + offset
             $U64FlatHashDict
                 {
                     data: List.set data dataIndex (T key value),
@@ -145,13 +147,15 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
 Position : { slotIndex: Nat, offset: Nat, loaded: I64 }
 ProbeResult a: [ Found Position a, NotFound Position ]
 
+mul8 = \val -> Num.shiftLeftBy 3 val
+
 loadAtOffset : I64, Nat -> I8
 loadAtOffset = \val, offset ->
-    Num.toI8 (shiftRightZfByHack (offset * 8) (Num.toNat val))
+    Num.toI8 (shiftRightZfByHack (mul8 offset) (Num.toNat val))
 
 updateAtOffset : I64, Nat, I8 -> I64
 updateAtOffset = \val, offset, updateVal ->
-    bitOffset = offset * 8
+    bitOffset = mul8 offset
     # No bitwiseNot update when added.
     mask = Num.bitwiseXor 0xFFFF_FFFF_FFFF_FFFF (Num.shiftLeftBy bitOffset 0xFF)
     update = Num.shiftLeftBy bitOffset (Num.toNat updateVal)
@@ -187,7 +191,7 @@ probeMDHelper = \md, data, key, h2Key, probeI, { slotIndex, offset, loaded }, de
         else if byte == h2Key then
             # We potentially found the element.
             # Just need to check the key.
-            dataIndex = slotIndex * groupSize + offset
+            dataIndex = (mulGroupSize slotIndex) + offset
             when List.get data dataIndex is
                 Ok (T k v) ->
                     if k == key then
@@ -276,7 +280,7 @@ maybeInsertForRehash = \$U64FlatHashDict { data, metadata, size, default, seed }
                 h2Key = h2 hashKey
                 when probeMD metadata data key h1Key h2Key is
                     NotFound { slotIndex, offset, loaded } ->
-                        dataIndex = slotIndex * groupSize + offset
+                        dataIndex = (mulGroupSize slotIndex) + offset
                         $U64FlatHashDict
                             {
                                 data: List.set data dataIndex (T key value),
@@ -329,7 +333,7 @@ rehashHelper = \dict, metadata, data, slotIndex ->
             s5 = loadAtOffset md 5
             s6 = loadAtOffset md 6
             s7 = loadAtOffset md 7
-            dataIndex = slotIndex * groupSize
+            dataIndex = mulGroupSize slotIndex
             nextDict0 = maybeInsertForRehash dict s0 data dataIndex
             nextDict1 = maybeInsertForRehash nextDict0 s1 data (dataIndex + 1)
             nextDict2 = maybeInsertForRehash nextDict1 s2 data (dataIndex + 2)
