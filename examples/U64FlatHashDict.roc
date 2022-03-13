@@ -264,8 +264,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                     default,
                     seed,
                 }
-        # rehashHelper newDict metadata data 0
-        newDict
+        rehashHelper newDict metadata data 0
 
 maybeInsertForRehash : U64FlatHashDict a, I8, List (Elem a), Nat -> U64FlatHashDict a
 maybeInsertForRehash = \$U64FlatHashDict { data, metadata, size, default, seed }, oldH2Key, oldData, oldDataIndex ->
