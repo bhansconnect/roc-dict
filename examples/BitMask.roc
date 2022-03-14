@@ -17,7 +17,7 @@ lowestSet = \$BitMask mask ->
 
 next : BitMask -> BitMask
 next = \$BitMask mask ->
-    nextMask = Num.bitwiseAnd mask (mask - 1)
+    nextMask = Num.bitwiseAnd mask (Num.subWrap mask 1)
     $BitMask nextMask
 
 any : BitMask -> Bool
@@ -63,36 +63,36 @@ shiftRightZfByHack = \by, val ->
 # This function is only valid if num != 0
 trailingZeroCount : U64 -> Nat
 trailingZeroCount = \num ->
-    x = Num.bitwiseAnd num ((bitwiseNot num) + 1)
+    x = Num.bitwiseAnd num (Num.addWrap (bitwiseNot num) 1)
     c0 = 63
     c1 =
         if Num.bitwiseAnd x 0x00000000FFFFFFFF != 0 then
-            c0 - 32
+            Num.subWrap c0 32
         else
             c0
     c2 =
         if Num.bitwiseAnd x 0x0000FFFF0000FFFF != 0 then
-            c1 - 16
+            Num.subWrap c1 16
         else
             c1
     c3 =
         if Num.bitwiseAnd x 0x00FF00FF00FF00FF != 0 then
-            c2 - 8
+            Num.subWrap c2 8
         else
             c2
     c4 =
         if Num.bitwiseAnd x 0x0F0F0F0F0F0F0F0F != 0 then
-            c3 - 4
+            Num.subWrap c3 4
         else
             c3
     c5 =
         if Num.bitwiseAnd x 0x3333333333333333 != 0 then
-            c4 - 2
+            Num.subWrap c4 2
         else
             c4
     c6 =
         if Num.bitwiseAnd x 0x5555555555555555 != 0 then
-            c5 - 1
+            Num.subWrap c5 1
         else
             c5
     shiftRightZfByHack 3 c6

@@ -45,7 +45,7 @@ match = \$Group g, $H2 h ->
     lsbs = 0x0101010101010101
     x = Num.bitwiseXor g (lsbs * (Num.toU64 h))
     y = Num.bitwiseAnd msbs (bitwiseNot x)
-    BitMask.create (Num.bitwiseAnd (x - lsbs) y)
+    BitMask.create (Num.bitwiseAnd (Num.subWrap x lsbs) y)
 
 matchFull : Group -> BitMask
 matchFull = \$Group g ->

@@ -63,8 +63,8 @@ newProbe = \h1Key, slots ->
 
 nextProbe : Probe -> Probe
 nextProbe = \{ slotIndex, probeI, mask } ->
-    nextSlotIndex = Num.bitwiseAnd (slotIndex + probeI) mask 
-    { slotIndex: nextSlotIndex, probeI: probeI + 1, mask }
+    nextSlotIndex = Num.bitwiseAnd (Num.addWrap slotIndex probeI) mask
+    { slotIndex: nextSlotIndex, probeI: Num.addWrap probeI 1, mask }
 
 contains : U64FlatHashDict a, U64 -> Bool
 contains = \$U64FlatHashDict { data, metadata, seed }, key ->
@@ -92,7 +92,7 @@ getHelper = \data, metadata, { slotIndex, probeI, mask }, h2Key, key ->
             h2Match = Group.match group h2Key
             found =
                 BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
-                    dataIndex = (Group.mulSize slotIndex) + offset
+                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
                     when List.get data dataIndex is
                         Ok (T k v) ->
                             if k == key then
@@ -134,7 +134,7 @@ removeHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
             h2Match = Group.match group h2Key
             found =
                 BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
-                    dataIndex = (Group.mulSize slotIndex) + offset
+                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
                     when List.get data dataIndex is
                         Ok (T k _) ->
                             if k == key then
@@ -190,7 +190,7 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
             h2Match = Group.match group h2Key
             found =
                 BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
-                    dataIndex = (Group.mulSize slotIndex) + offset
+                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
                     when List.get data dataIndex is
                         Ok (T k _) ->
                             if k == key then
@@ -204,7 +204,7 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
                 )
             when found is
                 Ok offset ->
-                    dataIndex = (Group.mulSize slotIndex) + offset
+                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
                     Inserted ($U64FlatHashDict
                         {
                             data: List.set data dataIndex (T key value),
@@ -222,7 +222,7 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
                             {
                                 data,
                                 metadata,
-                                size: size + 1,
+                                size: Num.addWrap size 1,
                                 default,
                                 seed,
                             })
@@ -238,7 +238,7 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
                 {
                     data,
                     metadata,
-                    size: size + 1,
+                    size: Num.addWrap size 1,
                     default,
                     seed,
                 })
@@ -254,7 +254,7 @@ insertInFirstEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default,
             if BitMask.any emptyOrDeletedMask then
                 # We found a spot to insert in.
                 offset = BitMask.lowestSet emptyOrDeletedMask
-                dataIndex = (Group.mulSize slotIndex) + offset
+                dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
                 newGroup = Group.updateKeyAtOffset group offset h2Key
                 $U64FlatHashDict
                     {
@@ -279,7 +279,7 @@ maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
-            cap - (shiftRightZfByHack 3 cap)
+            Num.subWrap cap (shiftRightZfByHack 3 cap)
     if size >= maxLoadCap then
         rehash ($U64FlatHashDict { data, metadata, size, default, seed })
     else
@@ -317,7 +317,7 @@ rehashHelper = \dict, oldMetadata, oldData, slotIndex ->
             matchFull = Group.matchFull group
             nextDict =
                 BitMask.walk matchFull dict (\currentDict, offset ->
-                    dataIndex = (Group.mulSize slotIndex) + offset
+                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
                     when List.get oldData dataIndex is
                         Ok (T k v) ->
                             hashKey = Wyhash.hashU64 seed k
@@ -329,7 +329,7 @@ rehashHelper = \dict, oldMetadata, oldData, slotIndex ->
                             # This should not be possible, maybe panic
                             currentDict
                 )
-            rehashHelper nextDict oldMetadata oldData (slotIndex + 1)
+            rehashHelper nextDict oldMetadata oldData (Num.addWrap slotIndex 1)
 
         Err OutOfBounds ->
             # We have walked the entire list.
