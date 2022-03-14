@@ -148,24 +148,23 @@ getHelper = \data, metadata, { slotIndex, probeI, mask }, h2Key, key ->
                         np = nextProbe { slotIndex, probeI, mask }
                         getHelper data metadata np h2Key key
         Err OutOfBounds ->
-            # not possible. just return not found
+            # This should not be possible, maybe panic
             Err NotFound
 
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insert = \dict, key, value ->
-    insertInternal (maybeRehash dict) key value
-
-# Does insertion without potentially rehashing.
-insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
+insert = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = Group.h1 hashKey
     h2Key = Group.h2 hashKey
     probe = newProbe h1Key (List.len metadata)
-    insertInternalHelper ($U64FlatHashDict { data, metadata, size, default, seed }) probe h2Key key value
+    when insertHelper ($U64FlatHashDict { data, metadata, size, default, seed }) probe h2Key key value is
+        Inserted dict ->
+            dict
+        NeedsInsert dict ->
+            insertInFirstEmptyOrDeleted dict probe h2Key key value
 
-insertInternalHelper : U64FlatHashDict a, Probe, Group.H2, U64, a -> U64FlatHashDict a
-insertInternalHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
+insertHelper : U64FlatHashDict a, Probe, Group.H2, U64, a -> [ Inserted (U64FlatHashDict a), NeedsInsert (U64FlatHashDict a) ]
+insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
     when List.get metadata slotIndex is
         Ok group ->
             h2Match = Group.match group h2Key
@@ -186,136 +185,72 @@ insertInternalHelper = \$U64FlatHashDict { data, metadata, size, default, seed }
             when found is
                 Ok offset ->
                     dataIndex = (Group.mulSize slotIndex) + offset
-                    $U64FlatHashDict
+                    Inserted ($U64FlatHashDict
                         {
                             data: List.set data dataIndex (T key value),
                             metadata, # metadata will already be correct if we found the key
-                            size: 0 - 1,
+                            size,
                             default,
                             seed,
-                        }
+                        })
                 Err NotFound ->
                     emptyMask = Group.matchEmpty group
                     if BitMask.any emptyMask then
-                        # Group has empty, insert in the first empty offset.
-                        # TODO: this should actually rescan the metadata for the first empty or delete and insert.
-                        offset = BitMask.lowestSet emptyMask
-                        dataIndex = (Group.mulSize slotIndex) + offset
-                        newGroup = Group.updateKeyAtOffset group offset h2Key
-                        $U64FlatHashDict
+                        # Group has empty, insert in the first empty or deleted slot.
+                        # We are adding a new element, this may require a rehash.
+                        rehashedDict = maybeRehash ($U64FlatHashDict
                             {
-                                data: List.set data dataIndex (T key value),
-                                metadata: List.set metadata slotIndex newGroup,
+                                data,
+                                metadata,
                                 size,
                                 default,
                                 seed,
-                            }
+                            })
+                        NeedsInsert rehashedDict
                     else
                         # Group is full, check next group.
                         np = nextProbe { slotIndex, probeI, mask }
-                        insertInternalHelper ($U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
+                        insertHelper ($U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
+        Err OutOfBounds ->
+            # This will only happen if the dictionary is completely empty.
+            # Rehash and then insert.
+            rehashedDict = maybeRehash ($U64FlatHashDict
+                {
+                    data,
+                    metadata,
+                    size,
+                    default,
+                    seed,
+                })
+            NeedsInsert rehashedDict
+
+# This will not check for key matches.
+# It should only be used when we know the key won't match.
+insertInFirstEmptyOrDeleted : U64FlatHashDict a, Probe, Group.H2, U64, a -> U64FlatHashDict a
+insertInFirstEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
+    when List.get metadata slotIndex is
+        Ok group ->
+            emptyOrDeletedMask = Group.matchEmpty group
+            if BitMask.any emptyOrDeletedMask then
+                # We found a spot to insert in.
+                offset = BitMask.lowestSet emptyOrDeletedMask
+                dataIndex = (Group.mulSize slotIndex) + offset
+                newGroup = Group.updateKeyAtOffset group offset h2Key
+                $U64FlatHashDict
+                    {
+                        data: List.set data dataIndex (T key value),
+                        metadata: List.set metadata slotIndex newGroup,
+                        size,
+                        default,
+                        seed,
+                    }
+            else
+                # Group is full, check next group.
+                np = nextProbe { slotIndex, probeI, mask }
+                insertInFirstEmptyOrDeleted ($U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
         Err OutOfBounds ->
             # This should not be possible, maybe panic
             $U64FlatHashDict { data, metadata, size: 0 - 1, default, seed }
-            
-    # hashKey = Wyhash.hashU64 seed key
-    # h1Key = h1 hashKey
-    # h2Key = h2 hashKey
-    # when probeMD metadata data key h1Key h2Key is
-    #     Found { slotIndex, offset } _ ->
-    #         dataIndex = (mulGroupSize slotIndex) + offset
-    #         $U64FlatHashDict
-    #             {
-    #                 data: List.set data dataIndex (T key value),
-    #                 metadata, # metadata will already be correct if we found the key
-    #                 size,
-    #                 default,
-    #                 seed,
-    #             }
-    #     NotFound { slotIndex, offset, loaded } ->
-    #         dataIndex = (mulGroupSize slotIndex) + offset
-    #         $U64FlatHashDict
-    #             {
-    #                 data: List.set data dataIndex (T key value),
-    #                 metadata: List.set metadata slotIndex (updateAtOffset loaded offset h2Key),
-    #                 size: size + 1,
-    #                 default,
-    #                 seed,
-    #             }
-
-# ProbeResult a: [ Found Position a, NotFound Position ]
-
-# mul8 = \val -> Num.shiftLeftBy 3 val
-
-# probeMD: List I64, List (Elem a), U64, U64, I8 -> ProbeResult a
-# probeMD = \md, data, key, h1Key, h2Key ->
-#     slotIndex = Num.bitwiseAnd (Num.toNat h1Key) (List.len md - 1)
-#     when List.get md slotIndex is
-#         Ok loaded ->
-#             probeMDHelper md data key h2Key 0 {loaded, slotIndex, offset: 0} None
-#         Err OutOfBounds ->
-#             # not possible. just panic
-#             NotFound { slotIndex: 0 - 1, offset: 0, loaded: 0 }
-
-
-# I really hope this giant function inlines.
-# I think it will be needed for performance. Otherwise I will have to make like 4 slightly different copies.
-# In the NotFound case this will return the first empty or deleted index.
-# probeMDHelper: List I64, List (Elem a), U64, I8, Nat, Position, Option Position -> ProbeResult a
-# probeMDHelper = \md, data, key, h2Key, probeI, { slotIndex, offset, loaded }, deletedIndex ->
-#     if offset < groupSize then
-#         # Hopefully the toNat doesn't break anything here. Types are angry.
-#         byte = loadAtOffset loaded offset
-#         if byte == emptySlot then
-#             # No more possible data.
-#             # return the first tombstone index.
-#             when deletedIndex is
-#                 Some pos ->
-#                     NotFound pos
-#                 None ->
-#                     NotFound { slotIndex, offset, loaded }
-#         else if byte == h2Key then
-#             # We potentially found the element.
-#             # Just need to check the key.
-#             dataIndex = (mulGroupSize slotIndex) + offset
-#             when List.get data dataIndex is
-#                 Ok (T k v) ->
-#                     if k == key then
-#                         # we have a match, return it's index
-#                         Found { slotIndex, offset, loaded } v
-#                     else
-#                         # No match, keep checking.
-#                         # indexInsertHelper metadata data h2Key key (index + 1)
-#                         probeMDHelper md data key h2Key probeI { slotIndex, offset: (offset + 1), loaded } deletedIndex
-
-#                 Err OutOfBounds ->
-#                     # not possible. just panic
-#                     NotFound { slotIndex: 0 - 1, offset: 0, loaded: 0 }
-#         else if byte == deletedSlot then
-#             # Found a deleted item. Store the index because we might insert here
-#             # Otherwise, just move on.
-#             deletedPos =
-#                 when deletedIndex is
-#                     Some pos ->
-#                         pos
-#                     None ->
-#                         { slotIndex, offset, loaded }
-#             probeMDHelper md data key h2Key probeI { slotIndex, offset: (offset + 1), loaded } (Some deletedPos)
-#         else
-#             # Just continue, this is a used slot
-#             probeMDHelper md data key h2Key probeI { slotIndex, offset: (offset + 1), loaded } deletedIndex
-#     else
-#         # The offset is too large, which means we need to load the next chunk of metadata
-#         newProbeI = probeI + 1
-#         newSlotIndex = Num.bitwiseAnd (slotIndex + newProbeI) (List.len md - 1)
-#         newOffset = 0
-#         when List.get md newSlotIndex is
-#             Ok newLoaded ->
-#                 probeMDHelper md data key h2Key newProbeI { slotIndex: newSlotIndex, offset: newOffset, loaded: newLoaded } deletedIndex
-#             Err OutOfBounds ->
-#                 # not possible. just panic
-#                 NotFound { slotIndex: 0 - 1, offset: 0, loaded: 0 }
-
 
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
