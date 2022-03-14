@@ -154,7 +154,7 @@ removeHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
                             {
                                 data,
                                 metadata: List.set metadata slotIndex newGroup,
-                                size,
+                                size: Num.subWrap size 1,
                                 default,
                                 seed,
                             }
