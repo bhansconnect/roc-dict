@@ -181,7 +181,10 @@ insert = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value -
         Inserted dict ->
             dict
         NeedsInsert dict ->
-            insertInFirstEmptyOrDeleted dict probe h2Key key value
+            # probe must be recalculated because there may have been a rehash.
+            ($U64FlatHashDict dictInternal) = dict
+            probe2 = newProbe h1Key (List.len dictInternal.metadata)
+            insertInFirstEmptyOrDeleted dict probe2 h2Key key value
 
 insertHelper : U64FlatHashDict a, Probe, Group.H2, U64, a -> [ Inserted (U64FlatHashDict a), NeedsInsert (U64FlatHashDict a) ]
 insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
