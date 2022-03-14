@@ -1,8 +1,17 @@
 interface Group
-    exposes [ Group, create, allEmpty, h1, h2, H2, size, mulSize, match, matchEmpty, matchEmptyOrDeleted, updateKeyAtOffset ]
+    exposes [ Group, create, allEmpty, emptySlot, deletedSlot, h1, h2, H2, size, mulSize, match, matchEmpty, matchEmptyOrDeleted, matchFull, updateKeyAtOffset ]
     imports [ BitMask.{ BitMask } ]
 
 Group := U64
+
+# This is based off of absl::flat_hash_map.
+# It is simplified to make it nicer to write in roc.
+emptySlot : I8
+emptySlot = -128
+deletedSlot : I8
+deletedSlot = -2
+# sentinel : I8
+# sentinel = -1
 
 allEmpty : Group
 allEmpty = $Group 0x8080_8080_8080_8080
@@ -37,6 +46,12 @@ match = \$Group g, $H2 h ->
     x = Num.bitwiseXor g (lsbs * (Num.toU64 h))
     y = Num.bitwiseAnd msbs (bitwiseNot x)
     BitMask.create (Num.bitwiseAnd (x - lsbs) y)
+
+matchFull : Group -> BitMask
+matchFull = \$Group g ->
+    msbs = 0x8080808080808080
+    ng = bitwiseNot g
+    BitMask.create (Num.bitwiseAnd ng msbs)
 
 matchEmpty : Group -> BitMask
 matchEmpty = \$Group g ->

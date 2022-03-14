@@ -1,5 +1,5 @@
 interface BitMask
-    exposes [ BitMask, create, lowestSet, next, hasMore, any, walkUntil ]
+    exposes [ BitMask, create, lowestSet, next, hasMore, any, walk, walkUntil ]
     imports [ ]
 
 
@@ -26,6 +26,16 @@ any = hasMore
 hasMore : BitMask -> Bool
 hasMore = \$BitMask mask ->
     mask != 0
+
+walk : BitMask, a, (a, Nat -> a) -> a
+walk = \mask, state, callback ->
+    if hasMore mask then
+        offset = lowestSet mask
+        nextState = callback state offset
+        nextMask = next mask
+        walk nextMask nextState callback
+    else
+        state
 
 walkUntil : BitMask, a, (a, Nat -> [ Stop a, Continue a ]) -> a
 walkUntil = \mask, state, callback ->

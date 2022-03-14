@@ -2,17 +2,6 @@ interface U64FlatHashDict
     exposes [ U64FlatHashDict, empty, insert, contains, get, remove, clear, capacity, len ]
     imports [ Wyhash, BitMask, Group.{ Group } ]
 
-# This is based off of absl::flat_hash_map.
-# It is simplified to make it nicer to write in roc.
-emptySlot : I8
-emptySlot = -128
-deletedSlot : I8
-deletedSlot = -2
-# sentinel : I8
-# sentinel = -1
-
-Option a : [ Some a, None ]
-
 Elem a : [ T U64 a ]
 
 U64FlatHashDict a := {
@@ -123,7 +112,7 @@ getHelper = \data, metadata, { slotIndex, probeI, mask }, h2Key, key ->
         Ok group ->
             h2Match = Group.match group h2Key
             found =
-                BitMask.walkUntil h2Match (Err NotFound) (\state, offset ->
+                BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
                     dataIndex = (Group.mulSize slotIndex) + offset
                     when List.get data dataIndex is
                         Ok (T k v) ->
@@ -169,10 +158,10 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
         Ok group ->
             h2Match = Group.match group h2Key
             found =
-                BitMask.walkUntil h2Match (Err NotFound) (\state, offset ->
+                BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
                     dataIndex = (Group.mulSize slotIndex) + offset
                     when List.get data dataIndex is
-                        Ok (T k v) ->
+                        Ok (T k _) ->
                             if k == key then
                                 # we have a match, return its offset
                                 Stop (Ok offset)
@@ -202,7 +191,7 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
                             {
                                 data,
                                 metadata,
-                                size,
+                                size: size + 1,
                                 default,
                                 seed,
                             })
@@ -218,7 +207,7 @@ insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slot
                 {
                     data,
                     metadata,
-                    size,
+                    size: size + 1,
                     default,
                     seed,
                 })
@@ -253,7 +242,7 @@ insertInFirstEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default,
             $U64FlatHashDict { data, metadata, size: 0 - 1, default, seed }
 
 # This is how we grow the container.
-# If we aren't to the load factor yet, just ignore this.
+# If adding an element would cause us to reach load factor, we must rehash.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
 maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
@@ -286,92 +275,35 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                     default,
                     seed,
                 }
-        # rehashHelper newDict metadata data 0
-        newDict
+        rehashHelper newDict metadata data 0
 
-# maybeInsertForRehash : U64FlatHashDict a, I8, List (Elem a), Nat -> U64FlatHashDict a
-# maybeInsertForRehash = \$U64FlatHashDict { data, metadata, size, default, seed }, oldH2Key, oldData, oldDataIndex ->
-#     if oldH2Key >= 0 then
-#         when List.get oldData oldDataIndex is
-#             Ok (T key value) ->
-#                 hashKey = Wyhash.hashU64 seed key
-#                 h1Key = h1 hashKey
-#                 h2Key = h2 hashKey
-#                 when probeMD metadata data key h1Key h2Key is
-#                     NotFound { slotIndex, offset, loaded } ->
-#                         dataIndex = (mulGroupSize slotIndex) + offset
-#                         $U64FlatHashDict
-#                             {
-#                                 data: List.set data dataIndex (T key value),
-#                                 metadata: List.set metadata slotIndex (updateAtOffset loaded offset h2Key),
-#                                 size,
-#                                 default,
-#                                 seed,
-#                             }
-#                     Found _ _ ->
-#                         # Panic this should never happen.
-#                         $U64FlatHashDict
-#                             {
-#                                 data,
-#                                 metadata,
-#                                 size: 0 - 1,
-#                                 default,
-#                                 seed,
-#                             }
+rehashHelper : U64FlatHashDict a, List Group, List (Elem a), Nat -> U64FlatHashDict a
+rehashHelper = \$U64FlatHashDict dictInternal, oldMetadata, oldData, slotIndex ->
+    {seed} = dictInternal
+    slots = List.len dictInternal.metadata
+    when List.get oldMetadata slotIndex is
+        Ok group ->
+            matchFull = Group.matchFull group
+            nextDict =
+                BitMask.walk matchFull ($U64FlatHashDict dictInternal) (\currentDict, offset ->
+                    dataIndex = (Group.mulSize slotIndex) + offset
+                    when List.get oldData dataIndex is
+                        Ok (T k v) ->
+                            hashKey = Wyhash.hashU64 seed k
+                            h1Key = Group.h1 hashKey
+                            h2Key = Group.h2 hashKey
+                            probe = newProbe h1Key slots
+                            insertInFirstEmptyOrDeleted currentDict probe h2Key k v
+                        Err OutOfBounds ->
+                            # This should not be possible, maybe panic
+                            currentDict
+                )
+            rehashHelper nextDict oldMetadata oldData (slotIndex + 1)
 
-#             Err OutOfBounds ->
-#                 # This should be an impossible state since data and metadata are the same size
-#                 $U64FlatHashDict
-#                     {
-#                         data,
-#                         metadata,
-#                         size: 0 - 1,
-#                         default,
-#                         seed,
-#                     }
-#     else
-#         $U64FlatHashDict
-#             {
-#                 data,
-#                 metadata,
-#                 size,
-#                 default,
-#                 seed,
-#             }
-
-
-# rehashHelper : U64FlatHashDict a, List I64, List (Elem a), Nat -> U64FlatHashDict a
-# rehashHelper = \dict, metadata, data, slotIndex ->
-#     when List.get metadata slotIndex is
-#         Ok md ->
-#             s0 = loadAtOffset md 0
-#             s1 = loadAtOffset md 1
-#             s2 = loadAtOffset md 2
-#             s3 = loadAtOffset md 3
-#             s4 = loadAtOffset md 4
-#             s5 = loadAtOffset md 5
-#             s6 = loadAtOffset md 6
-#             s7 = loadAtOffset md 7
-#             dataIndex = mulGroupSize slotIndex
-#             nextDict0 = maybeInsertForRehash dict s0 data dataIndex
-#             nextDict1 = maybeInsertForRehash nextDict0 s1 data (dataIndex + 1)
-#             nextDict2 = maybeInsertForRehash nextDict1 s2 data (dataIndex + 2)
-#             nextDict3 = maybeInsertForRehash nextDict2 s3 data (dataIndex + 3)
-#             nextDict4 = maybeInsertForRehash nextDict3 s4 data (dataIndex + 4)
-#             nextDict5 = maybeInsertForRehash nextDict4 s5 data (dataIndex + 5)
-#             nextDict6 = maybeInsertForRehash nextDict5 s6 data (dataIndex + 6)
-#             nextDict7 = maybeInsertForRehash nextDict6 s7 data (dataIndex + 7)
-
-#             rehashHelper nextDict7 metadata data (slotIndex + 1)
-
-#         Err OutOfBounds ->
-#             dict
-
-
-
-bitwiseNot : Nat -> Nat
-bitwiseNot = \x ->
-    Num.bitwiseXor 0xFFFF_FFFF_FFFF_FFFF x
+        Err OutOfBounds ->
+            # We have walked the entire list.
+            # The new dict is loaded.
+            $U64FlatHashDict dictInternal
 
 # This is broken. Zf and normal are filled.
 shiftRightZfByHack = \by, val ->
