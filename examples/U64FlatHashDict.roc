@@ -1,6 +1,6 @@
 interface U64FlatHashDict
     exposes [ U64FlatHashDict, empty, insert, contains, get, remove, clear, capacity, len ]
-    imports [ Wyhash, BitMask, Group.{ Group } ]
+    imports [ Wyhash, BitMask.{ BitMask }, Group.{ Group } ]
 
 Elem a : [ T U64 a ]
 
@@ -278,14 +278,14 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
         rehashHelper newDict metadata data 0
 
 rehashHelper : U64FlatHashDict a, List Group, List (Elem a), Nat -> U64FlatHashDict a
-rehashHelper = \$U64FlatHashDict dictInternal, oldMetadata, oldData, slotIndex ->
-    {seed} = dictInternal
-    slots = List.len dictInternal.metadata
+rehashHelper = \dict, oldMetadata, oldData, slotIndex ->
+    ($U64FlatHashDict {seed, metadata}) = dict
+    slots = List.len metadata
     when List.get oldMetadata slotIndex is
         Ok group ->
             matchFull = Group.matchFull group
             nextDict =
-                BitMask.walk matchFull ($U64FlatHashDict dictInternal) (\currentDict, offset ->
+                BitMask.walk matchFull dict (\currentDict, offset ->
                     dataIndex = (Group.mulSize slotIndex) + offset
                     when List.get oldData dataIndex is
                         Ok (T k v) ->
@@ -303,7 +303,7 @@ rehashHelper = \$U64FlatHashDict dictInternal, oldMetadata, oldData, slotIndex -
         Err OutOfBounds ->
             # We have walked the entire list.
             # The new dict is loaded.
-            $U64FlatHashDict dictInternal
+            dict
 
 # This is broken. Zf and normal are filled.
 shiftRightZfByHack = \by, val ->
