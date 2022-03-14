@@ -27,18 +27,6 @@ empty = \default ->
             seed: Wyhash.createSeed 0x0123_4567_89AB_CDEF,
         }
 
-contains : U64FlatHashDict a, U64 -> Bool
-contains = \$U64FlatHashDict { data, metadata, seed }, key ->
-    False
-    # hashKey = Wyhash.hashU64 seed key
-    # h1Key = h1 hashKey
-    # h2Key = h2 hashKey
-    # when probeMD metadata data key h1Key h2Key is 
-    #     Found _ _ ->
-    #         True
-    #     NotFound _ ->
-    #         False
-
 len : U64FlatHashDict a -> Nat
 len = \$U64FlatHashDict { size } ->
     size
@@ -46,25 +34,6 @@ len = \$U64FlatHashDict { size } ->
 capacity : U64FlatHashDict a -> Nat
 capacity = \$U64FlatHashDict { data } ->
     List.len data
-
-remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
-remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
-    T ($U64FlatHashDict { data, metadata, size, default, seed }) False
-    # hashKey = Wyhash.hashU64 seed key
-    # h1Key = h1 hashKey
-    # h2Key = h2 hashKey
-    # when probeMD metadata data key h1Key h2Key is
-    #     Found { slotIndex, offset, loaded } _ ->
-    #         T ($U64FlatHashDict
-    #             {
-    #                 data: data,
-    #                 metadata: List.set metadata slotIndex (updateAtOffset loaded offset deletedSlot),
-    #                 size: size - 1,
-    #                 default,
-    #                 seed,
-    #             }) True
-    #     NotFound _ ->
-    #         T ($U64FlatHashDict { data, metadata, size, default, seed }) False
 
 clear : U64FlatHashDict a -> U64FlatHashDict a
 clear = \$U64FlatHashDict { data, metadata, default, seed } ->
@@ -83,7 +52,6 @@ clear = \$U64FlatHashDict { data, metadata, default, seed } ->
             seed
         }
 
-
 # Capacity must be a power of 2.
 Probe : { slotIndex: Nat, probeI: Nat, mask: Nat }
 
@@ -97,6 +65,17 @@ nextProbe : Probe -> Probe
 nextProbe = \{ slotIndex, probeI, mask } ->
     nextSlotIndex = Num.bitwiseAnd (slotIndex + probeI) mask 
     { slotIndex: nextSlotIndex, probeI: probeI + 1, mask }
+
+contains : U64FlatHashDict a, U64 -> Bool
+contains = \$U64FlatHashDict { data, metadata, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = Group.h1 hashKey
+    h2Key = Group.h2 hashKey
+    probe = newProbe h1Key (List.len metadata)
+    # TODO: verify this optimizes correctly and isn't slow due to copying around the value.
+    when getHelper data metadata probe h2Key key is
+        Ok _ -> True
+        Err NotFound -> False
 
 get : U64FlatHashDict a, U64 -> Result a [ NotFound ]
 get = \$U64FlatHashDict { data, metadata, seed }, key ->
@@ -139,6 +118,58 @@ getHelper = \data, metadata, { slotIndex, probeI, mask }, h2Key, key ->
         Err OutOfBounds ->
             # This should not be possible, maybe panic
             Err NotFound
+
+remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
+remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = Group.h1 hashKey
+    h2Key = Group.h2 hashKey
+    probe = newProbe h1Key (List.len metadata)
+    removeHelper ($U64FlatHashDict { data, metadata, size, default, seed }) probe h2Key key
+
+removeHelper : U64FlatHashDict a, Probe, Group.H2, U64 -> [ T (U64FlatHashDict a) Bool ]
+removeHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key ->
+    when List.get metadata slotIndex is
+        Ok group ->
+            h2Match = Group.match group h2Key
+            found =
+                BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
+                    dataIndex = (Group.mulSize slotIndex) + offset
+                    when List.get data dataIndex is
+                        Ok (T k _) ->
+                            if k == key then
+                                # we have a match, return its offset
+                                Stop (Ok offset)
+                            else
+                                Continue (Err NotFound)
+                        Err OutOfBounds ->
+                            # This should not be possible, maybe panic
+                            Stop (Err NotFound)
+                )
+            when found is
+                Ok offset ->
+                    newGroup = Group.setDeletedAtOffset group offset
+                    newDict =
+                        $U64FlatHashDict
+                            {
+                                data,
+                                metadata: List.set metadata slotIndex newGroup,
+                                size,
+                                default,
+                                seed,
+                            }
+                    T newDict True
+                Err NotFound ->
+                    emptyMask = Group.matchEmpty group
+                    if BitMask.any emptyMask then
+                        T ($U64FlatHashDict { data, metadata, size, default, seed }) False
+                    else
+                        # Group is full, check next group.
+                        np = nextProbe { slotIndex, probeI, mask }
+                        removeHelper ($U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key
+        Err OutOfBounds ->
+            # This should not be possible, maybe panic
+            T ($U64FlatHashDict { data, metadata, size, default, seed }) False
 
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
 insert = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->

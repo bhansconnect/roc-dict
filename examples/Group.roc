@@ -1,5 +1,5 @@
 interface Group
-    exposes [ Group, create, allEmpty, emptySlot, deletedSlot, h1, h2, H2, size, mulSize, match, matchEmpty, matchEmptyOrDeleted, matchFull, updateKeyAtOffset ]
+    exposes [ Group, create, allEmpty, emptySlot, deletedSlot, h1, h2, H2, size, mulSize, match, matchEmpty, matchEmptyOrDeleted, matchFull, updateKeyAtOffset, setDeletedAtOffset ]
     imports [ BitMask.{ BitMask } ]
 
 Group := U64
@@ -74,6 +74,14 @@ bitwiseNot = \x ->
 # This is broken. Zf and normal are filled.
 shiftRightZfByHack = \by, val ->
     Num.shiftRightBy by val
+
+setDeletedAtOffset : Group, Nat -> Group
+setDeletedAtOffset = \$Group g, offset ->
+    bitOffset = mul8 offset
+    # No bitwiseNot update when added.
+    mask = bitwiseNot (Num.toU64 (Num.shiftLeftBy bitOffset 0xFF))
+    update = Num.shiftLeftBy bitOffset (Num.toNat deletedSlot)
+    $Group (Num.bitwiseOr (Num.bitwiseAnd g (Num.toU64 mask)) (Num.toU64 update))
 
 updateKeyAtOffset : Group, Nat, H2 -> Group
 updateKeyAtOffset = \$Group g, offset, $H2 updateVal ->
