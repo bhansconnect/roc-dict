@@ -48,7 +48,7 @@ contains = \$U64FlatHashDict { data, metadata, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 1 is
         T (Found _) _ ->
             True
 
@@ -61,7 +61,7 @@ get = \$U64FlatHashDict { data, metadata, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 1 is
         T (Found v) _ ->
             Some v
 
@@ -86,7 +86,7 @@ remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 1 is
         T (Found _) index ->
             T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size: (size - 1), default, seed }) True
 
@@ -117,8 +117,19 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexInsertHelper metadata data h2Key key (Num.toNat h1Key) is
-        T _ index ->
+    when indexInsertHelper metadata data h2Key key (Num.toNat h1Key) 1 is
+        Found index ->
+            $U64FlatHashDict
+                {
+                    data: List.set data index (T key value),
+                    metadata: List.set metadata index h2Key,
+                    size: size + 1,
+                    default,
+                    seed,
+                }
+        NotFound _ ->
+            # Need to rescan searching for the sirt empty or deleted cell.
+            index = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 1
             $U64FlatHashDict
                 {
                     data: List.set data index (T key value),
@@ -128,8 +139,24 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
                     seed,
                 }
 
-indexInsertHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
-indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex ->
+insertInEmptyOrDeleted : U64FlatHashDict a, U64, a -> U64FlatHashDict a
+insertInEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = h1 hashKey
+    h2Key = h2 hashKey
+
+    index = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 1
+    $U64FlatHashDict
+        {
+            data: List.set data index (T key value),
+            metadata: List.set metadata index h2Key,
+            size,
+            default,
+            seed,
+        }
+
+fillEmptyOrDeletedHelper : List I8, List (Elem a), I8, U64, Nat, Nat -> Nat
+fillEmptyOrDeletedHelper = \metadata, data, h2Key, key, oversizedIndex, probeI ->
     # For inserting, we can use deleted indices.
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
@@ -139,32 +166,52 @@ indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex ->
         Ok md ->
             if md < 0 then
                 # Empty or deleted slot no possibility of the element
-                T NotFound index
+                index
+            else
+                # Used slot, check next slot
+                fillEmptyOrDeletedHelper metadata data h2Key key (index + probeI) (probeI + 1)
+
+        Err OutOfBounds ->
+            # not possible. just panic
+            (0 - 1)
+
+indexInsertHelper : List I8, List (Elem a), I8, U64, Nat, Nat -> [ Found Nat, NotFound Nat ]
+indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, probeI ->
+    # For inserting, we can use deleted indices.
+    # we know that the length data is always a power of 2.
+    # as such, we can just and with the length - 1.
+    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
+
+    when List.get metadata index is
+        Ok md ->
+            if md < 0 then
+                # Empty or deleted slot no possibility of the element
+                NotFound index
             else if md == h2Key then
                 # This is potentially a match.
                 # Check data for if it is a match.
                 when List.get data index is
-                    Ok (T k v) ->
+                    Ok (T k _) ->
                         if k == key then
                             # we have a match, return it's index
-                            T (Found v) index
+                            Found index
                         else
                             # no match, keep checking.
-                            indexInsertHelper metadata data h2Key key (index + 1)
+                            indexInsertHelper metadata data h2Key key (index + probeI) (probeI + 1)
 
                     Err OutOfBounds ->
                         # not possible. just panic
-                        T NotFound (0 - 1)
+                        NotFound (0 - 1)
             else
                 # Used slot, check next slot
-                indexInsertHelper metadata data h2Key key (index + 1)
+                indexInsertHelper metadata data h2Key key (index + probeI) (probeI + 1)
 
         Err OutOfBounds ->
             # not possible. just panic
-            T NotFound (0 - 1)
+            NotFound (0 - 1)
 
-indexFindHelper : List I8, List (Elem a), I8, U64, Nat -> [ T [ Found a, NotFound ] Nat ]
-indexFindHelper = \metadata, data, h2Key, key, oversizedIndex ->
+indexFindHelper : List I8, List (Elem a), I8, U64, Nat, Nat -> [ T [ Found a, NotFound ] Nat ]
+indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, probeI ->
     # For finding we have to scan past deleted items.
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
@@ -185,14 +232,14 @@ indexFindHelper = \metadata, data, h2Key, key, oversizedIndex ->
                             T (Found v) index
                         else
                             # no match, keep checking.
-                            indexFindHelper metadata data h2Key key (index + 1)
+                            indexFindHelper metadata data h2Key key (index + probeI) (probeI + 1)
 
                     Err OutOfBounds ->
                         # not possible. just panic
                         T NotFound (0 - 1)
             else
                 # Used or deleted slot, check next slot
-                indexFindHelper metadata data h2Key key (index + 1)
+                indexFindHelper metadata data h2Key key (index + probeI) (probeI + 1)
 
         Err OutOfBounds ->
             # not possible. just panic
@@ -232,7 +279,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
                 {
                     data: List.repeat default newLen,
                     metadata: List.repeat emptySlot newLen,
-                    size: 0,
+                    size,
                     default,
                     seed,
                 }
@@ -248,7 +295,7 @@ rehashHelper = \dict, metadata, data, index ->
                     # We have an actual element here
                     when List.get data index is
                         Ok (T k v) ->
-                            insertInternal dict k v
+                            insertInEmptyOrDeleted dict k v
 
                         Err OutOfBounds ->
                             # This should be an impossible state since data and metadata are the same size
