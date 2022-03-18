@@ -48,7 +48,7 @@ contains = \$U64FlatHashDict { data, metadata, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 1 is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 0 8 is
         T (Found _) _ ->
             True
 
@@ -61,7 +61,7 @@ get = \$U64FlatHashDict { data, metadata, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 1 is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 0 8 is
         T (Found v) _ ->
             Some v
 
@@ -87,7 +87,7 @@ remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 1 is
+    when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 0 8 is
         T (Found _) index ->
             T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size: (size - 1), default, seed }) True
 
@@ -118,7 +118,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    when indexInsertHelper metadata data h2Key key (Num.toNat h1Key) 1 baseLoads is
+    when indexInsertHelper metadata data h2Key key (Num.toNat h1Key) 0 8 baseLoads is
         Found index loads ->
             T ($U64FlatHashDict
                 {
@@ -130,7 +130,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
                 }) loads
         NotFound _ loads ->
             # Need to rescan searching for the sirt empty or deleted cell.
-            T index finalLoads = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 1 loads
+            T index finalLoads = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 0 8 loads
             T ($U64FlatHashDict
                 {
                     data: List.set data index (T key value),
@@ -146,7 +146,7 @@ insertInEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default, seed
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
-    T index loads = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 1 0
+    T index loads = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 0 8 0
     T ($U64FlatHashDict
         {
             data: List.set data index (T key value),
@@ -156,12 +156,12 @@ insertInEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default, seed
             seed,
         }) loads
 
-fillEmptyOrDeletedHelper : List I8, List (Elem a), I8, U64, Nat, Nat, Nat -> [ T Nat Nat ]
-fillEmptyOrDeletedHelper = \metadata, data, h2Key, key, oversizedIndex, probeI, loads ->
+fillEmptyOrDeletedHelper : List I8, List (Elem a), I8, U64, Nat, Nat, Nat, Nat -> [ T Nat Nat ]
+fillEmptyOrDeletedHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI, loads ->
     # For inserting, we can use deleted indices.
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
-    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
+    index = Num.bitwiseAnd (oversizedIndex + offset) (List.len metadata - 1)
 
     when List.get metadata index is
         Ok md ->
@@ -171,18 +171,21 @@ fillEmptyOrDeletedHelper = \metadata, data, h2Key, key, oversizedIndex, probeI, 
                 T index nextLoads
             else
                 # Used slot, check next slot
-                fillEmptyOrDeletedHelper metadata data h2Key key (index + probeI) (probeI + 1) nextLoads
+                if offset == 8 then
+                    fillEmptyOrDeletedHelper metadata data h2Key key (index + probeI) 0 (probeI + 8) nextLoads
+                else
+                    fillEmptyOrDeletedHelper metadata data h2Key key index (offset + 1) probeI nextLoads
 
         Err OutOfBounds ->
             # not possible. just panic
             T (0 - 1) loads
 
-indexInsertHelper : List I8, List (Elem a), I8, U64, Nat, Nat, Nat -> [ Found Nat Nat, NotFound Nat Nat ]
-indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, probeI, loads ->
+indexInsertHelper : List I8, List (Elem a), I8, U64, Nat, Nat, Nat, Nat -> [ Found Nat Nat, NotFound Nat Nat ]
+indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI, loads ->
     # For inserting, we can use deleted indices.
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
-    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
+    index = Num.bitwiseAnd (oversizedIndex + offset) (List.len metadata - 1)
 
     when List.get metadata index is
         Ok md ->
@@ -200,25 +203,31 @@ indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, probeI, loads -
                             Found index nextLoads
                         else
                             # no match, keep checking.
-                            indexInsertHelper metadata data h2Key key (index + probeI) (probeI + 1) nextLoads
+                            if offset == 8 then
+                                indexInsertHelper metadata data h2Key key (index + probeI) 0 (probeI + 8) nextLoads
+                            else
+                                indexInsertHelper metadata data h2Key key index (offset + 1) probeI nextLoads
 
                     Err OutOfBounds ->
                         # not possible. just panic
                         NotFound (0 - 1) nextLoads
             else
                 # Used slot, check next slot
-                indexInsertHelper metadata data h2Key key (index + probeI) (probeI + 1) nextLoads
+                if offset == 8 then
+                    indexInsertHelper metadata data h2Key key (index + probeI) 0 (probeI + 8) nextLoads
+                else
+                    indexInsertHelper metadata data h2Key key index (offset + 1) probeI nextLoads
 
         Err OutOfBounds ->
             # not possible. just panic
             NotFound (0 - 1) loads
 
-indexFindHelper : List I8, List (Elem a), I8, U64, Nat, Nat -> [ T [ Found a, NotFound ] Nat ]
-indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, probeI ->
+indexFindHelper : List I8, List (Elem a), I8, U64, Nat, Nat, Nat -> [ T [ Found a, NotFound ] Nat ]
+indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI ->
     # For finding we have to scan past deleted items.
     # we know that the length data is always a power of 2.
     # as such, we can just and with the length - 1.
-    index = Num.bitwiseAnd oversizedIndex (List.len metadata - 1)
+    index = Num.bitwiseAnd (oversizedIndex + offset) (List.len metadata - 1)
 
     when List.get metadata index is
         Ok md ->
@@ -235,14 +244,21 @@ indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, probeI ->
                             T (Found v) index
                         else
                             # no match, keep checking.
-                            indexFindHelper metadata data h2Key key (index + probeI) (probeI + 1)
+                            if offset == 8 then
+                                indexFindHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
+                            else
+                                indexFindHelper metadata data h2Key key index (offset + 1) probeI
+
 
                     Err OutOfBounds ->
                         # not possible. just panic
                         T NotFound (0 - 1)
             else
                 # Used or deleted slot, check next slot
-                indexFindHelper metadata data h2Key key (index + probeI) (probeI + 1)
+                if offset == 8 then
+                    indexFindHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
+                else
+                    indexFindHelper metadata data h2Key key index (offset + 1) probeI
 
         Err OutOfBounds ->
             # not possible. just panic
