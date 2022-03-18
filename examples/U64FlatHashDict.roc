@@ -255,7 +255,7 @@ insertInFirstEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default,
     when List.get metadata slotIndex is
         Ok group ->
             nextLoads = loads + 1
-            emptyOrDeletedMask = Group.matchEmpty group
+            emptyOrDeletedMask = Group.matchEmptyOrDeleted group
             if BitMask.any emptyOrDeletedMask then
                 # We found a spot to insert in.
                 offset = BitMask.lowestSet emptyOrDeletedMask
