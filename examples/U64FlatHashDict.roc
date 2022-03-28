@@ -261,9 +261,6 @@ indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI ->
             # not possible. just panic
             T NotFound (0 - 1)
 
-shiftRightZfByHack = \by, val ->
-    Num.shiftRightBy by val
-
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
@@ -271,7 +268,7 @@ maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
-            cap - (shiftRightZfByHack 3 cap)
+            cap - (Num.shiftRightZfBy 3 cap)
     if size >= maxLoadCap then
         rehash ($U64FlatHashDict { data, metadata, size, default, seed })
     else
@@ -327,7 +324,7 @@ rehashHelper = \dict, metadata, data, index ->
 
 h1 : U64 -> U64
 h1 = \hashKey ->
-    shiftRightZfByHack 7 hashKey
+    Num.shiftRightZfBy 7 hashKey
 
 h2 : U64 -> I8
 h2 = \hashKey ->
