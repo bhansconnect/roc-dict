@@ -169,7 +169,7 @@ fillEmptyOrDeletedHelper = \metadata, data, h2Key, key, oversizedIndex, offset, 
                 index
             else
                 # Used slot, check next slot
-                if offset == 8 then
+                if offset == 7 then
                     fillEmptyOrDeletedHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
                 else
                     fillEmptyOrDeletedHelper metadata data h2Key key index (offset + 1) probeI
@@ -200,7 +200,7 @@ indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI 
                             Found index
                         else
                             # no match, keep checking.
-                            if offset == 8 then
+                            if offset == 7 then
                                 indexInsertHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
                             else
                                 indexInsertHelper metadata data h2Key key index (offset + 1) probeI
@@ -210,7 +210,7 @@ indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI 
                         NotFound (0 - 1)
             else
                 # Used slot, check next slot
-                if offset == 8 then
+                if offset == 7 then
                     indexInsertHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
                 else
                     indexInsertHelper metadata data h2Key key index (offset + 1) probeI
@@ -241,7 +241,7 @@ indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI ->
                             T (Found v) index
                         else
                             # no match, keep checking.
-                            if offset == 8 then
+                            if offset == 7 then
                                 indexFindHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
                             else
                                 indexFindHelper metadata data h2Key key index (offset + 1) probeI
@@ -252,7 +252,7 @@ indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI ->
                         T NotFound (0 - 1)
             else
                 # Used or deleted slot, check next slot
-                if offset == 8 then
+                if offset == 7 then
                     indexFindHelper metadata data h2Key key (index + probeI) 0 (probeI + 8)
                 else
                     indexFindHelper metadata data h2Key key index (offset + 1) probeI
