@@ -301,26 +301,29 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
 
 rehashHelper : U64FlatHashDict a, List I8, List (Elem a), Nat -> U64FlatHashDict a
 rehashHelper = \dict, metadata, data, index ->
-    when List.get metadata index is
-        Ok md ->
-            nextDict =
-                if md >= 0 then
-                    # We have an actual element here
-                    when List.get data index is
-                        Ok (T k v) ->
-                            insertInEmptyOrDeleted dict k v
+    if index < List.len metadata then
+        when List.get metadata index is
+            Ok md ->
+                nextDict =
+                    if md >= 0 then
+                        # We have an actual element here
+                        when List.get data index is
+                            Ok (T k v) ->
+                                insertInEmptyOrDeleted dict k v
 
-                        Err OutOfBounds ->
-                            # This should be an impossible state since data and metadata are the same size
-                            dict
-                else
-                    # Empty or deleted data
-                    dict
+                            Err OutOfBounds ->
+                                # This should be an impossible state since data and metadata are the same size
+                                dict
+                    else
+                        # Empty or deleted data
+                        dict
 
-            rehashHelper nextDict metadata data (index + 1)
+                rehashHelper nextDict metadata data (index + 1)
 
-        Err OutOfBounds ->
-            dict
+            Err OutOfBounds ->
+                dict
+    else
+        dict
 
 h1 : U64 -> U64
 h1 = \hashKey ->
