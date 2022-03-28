@@ -188,64 +188,75 @@ insert = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value -
 
 insertHelper : U64FlatHashDict a, Probe, Group.H2, U64, a -> [ Inserted (U64FlatHashDict a), NeedsInsert (U64FlatHashDict a) ]
 insertHelper = \$U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
-    when List.get metadata slotIndex is
-        Ok group ->
-            h2Match = Group.match group h2Key
-            found =
-                BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
-                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
-                    when List.get data dataIndex is
-                        Ok (T k _) ->
-                            if k == key then
-                                # we have a match, return its offset
-                                Stop (Ok offset)
-                            else
-                                Continue (Err NotFound)
-                        Err OutOfBounds ->
-                            # This should not be possible, maybe panic
-                            Stop (Err NotFound)
-                )
-            when found is
-                Ok offset ->
-                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
-                    Inserted ($U64FlatHashDict
-                        {
-                            data: List.set data dataIndex (T key value),
-                            metadata, # metadata will already be correct if we found the key
-                            size,
-                            default,
-                            seed,
-                        })
-                Err NotFound ->
-                    emptyMask = Group.matchEmpty group
-                    if BitMask.any emptyMask then
-                        # Group has empty, insert in the first empty or deleted slot.
-                        # We are adding a new element, this may require a rehash.
-                        rehashedDict = maybeRehash ($U64FlatHashDict
+    if !(List.isEmpty metadata) then
+        when List.get metadata slotIndex is
+            Ok group ->
+                h2Match = Group.match group h2Key
+                found =
+                    BitMask.walkUntil h2Match (Err NotFound) (\_, offset ->
+                        dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
+                        when List.get data dataIndex is
+                            Ok (T k _) ->
+                                if k == key then
+                                    # we have a match, return its offset
+                                    Stop (Ok offset)
+                                else
+                                    Continue (Err NotFound)
+                            Err OutOfBounds ->
+                                # This should not be possible, maybe panic
+                                Stop (Err NotFound)
+                    )
+                when found is
+                    Ok offset ->
+                        dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
+                        Inserted ($U64FlatHashDict
                             {
-                                data,
-                                metadata,
-                                size: Num.addWrap size 1,
+                                data: List.set data dataIndex (T key value),
+                                metadata, # metadata will already be correct if we found the key
+                                size,
                                 default,
                                 seed,
                             })
-                        NeedsInsert rehashedDict
-                    else
-                        # Group is full, check next group.
-                        np = nextProbe { slotIndex, probeI, mask }
-                        insertHelper ($U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
-        Err OutOfBounds ->
-            # This will only happen if the dictionary is completely empty.
-            # Rehash and then insert.
-            rehashedDict = maybeRehash ($U64FlatHashDict
-                {
-                    data,
-                    metadata,
-                    size: Num.addWrap size 1,
-                    default,
-                    seed,
-                })
-            NeedsInsert rehashedDict
+                    Err NotFound ->
+                        emptyMask = Group.matchEmpty group
+                        if BitMask.any emptyMask then
+                            # Group has empty, insert in the first empty or deleted slot.
+                            # We are adding a new element, this may require a rehash.
+                            rehashedDict = maybeRehash ($U64FlatHashDict
+                                {
+                                    data,
+                                    metadata,
+                                    size: Num.addWrap size 1,
+                                    default,
+                                    seed,
+                                })
+                            NeedsInsert rehashedDict
+                        else
+                            # Group is full, check next group.
+                            np = nextProbe { slotIndex, probeI, mask }
+                            insertHelper ($U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
+            Err OutOfBounds ->
+                # This will only happen if the dictionary is completely empty.
+                # Rehash and then insert.
+                rehashedDict = maybeRehash ($U64FlatHashDict
+                    {
+                        data,
+                        metadata,
+                        size: Num.addWrap size 1,
+                        default,
+                        seed,
+                    })
+                NeedsInsert rehashedDict
+    else
+        rehashedDict = maybeRehash ($U64FlatHashDict
+            {
+                data,
+                metadata,
+                size: Num.addWrap size 1,
+                default,
+                seed,
+            })
+        NeedsInsert rehashedDict
 
 # This will not check for key matches.
 # It should only be used when we know the key won't match.
@@ -315,26 +326,29 @@ rehashHelper : U64FlatHashDict a, List Group, List (Elem a), Nat -> U64FlatHashD
 rehashHelper = \dict, oldMetadata, oldData, slotIndex ->
     ($U64FlatHashDict {seed, metadata}) = dict
     slots = List.len metadata
-    when List.get oldMetadata slotIndex is
-        Ok group ->
-            matchFull = Group.matchFull group
-            nextDict =
-                BitMask.walk matchFull dict (\currentDict, offset ->
-                    dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
-                    when List.get oldData dataIndex is
-                        Ok (T k v) ->
-                            hashKey = Wyhash.hashU64 seed k
-                            h1Key = Group.h1 hashKey
-                            h2Key = Group.h2 hashKey
-                            probe = newProbe h1Key slots
-                            insertInFirstEmptyOrDeleted currentDict probe h2Key k v
-                        Err OutOfBounds ->
-                            # This should not be possible, maybe panic
-                            currentDict
-                )
-            rehashHelper nextDict oldMetadata oldData (Num.addWrap slotIndex 1)
+    if slotIndex < List.len oldMetadata then
+        when List.get oldMetadata slotIndex is
+            Ok group ->
+                matchFull = Group.matchFull group
+                nextDict =
+                    BitMask.walk matchFull dict (\currentDict, offset ->
+                        dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
+                        when List.get oldData dataIndex is
+                            Ok (T k v) ->
+                                hashKey = Wyhash.hashU64 seed k
+                                h1Key = Group.h1 hashKey
+                                h2Key = Group.h2 hashKey
+                                probe = newProbe h1Key slots
+                                insertInFirstEmptyOrDeleted currentDict probe h2Key k v
+                            Err OutOfBounds ->
+                                # This should not be possible, maybe panic
+                                currentDict
+                    )
+                rehashHelper nextDict oldMetadata oldData (Num.addWrap slotIndex 1)
 
-        Err OutOfBounds ->
-            # We have walked the entire list.
-            # The new dict is loaded.
-            dict
+            Err OutOfBounds ->
+                # We have walked the entire list.
+                # The new dict is loaded.
+                dict
+    else
+        dict
