@@ -16,14 +16,11 @@ salt3 = 0x082EFA98EC4E6C89
 salt4 : U64
 salt4 = 0x452821E638D01377
 
-shiftRightZfByHack = \by, val ->
-    Num.shiftRightBy by val
-
 mix : U64, U64 -> U64
 mix = \a, b ->
     r = Num.toU128 a * Num.toU128 b
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
-    upperR = shiftRightZfByHack 64 r
+    upperR = Num.shiftRightZfBy 64 r
 
     Num.bitwiseXor (Num.toU64 lowerR) (Num.toU64 upperR)
 
@@ -90,7 +87,7 @@ hashU64 : Seed, U64 -> U64
 hashU64 = \$Seed seed, key ->
     state0 = Num.bitwiseXor seed salt0
     a = Num.bitwiseAnd key 0xFFFF_FFFF
-    b = shiftRightZfByHack 32 key
+    b = Num.shiftRightZfBy 32 key
     w = mix (Num.bitwiseXor a salt1) (Num.bitwiseXor b state0)
     z = Num.bitwiseXor salt1 8
 
@@ -122,7 +119,7 @@ hashBytes = \$Seed seed, list ->
             { a: loadU32At list index2, b: loadU32At list (index2 + remaining2 - 4) }
         else if remaining2 > 0 then
             p1 = Num.toU64 (getByte list index2)
-            p2 = Num.toU64 (getByte list (index2 + shiftRightZfByHack 1 remaining2))
+            p2 = Num.toU64 (getByte list (index2 + Num.shiftRightZfBy 1 remaining2))
             p3 = Num.toU64 (getByte list (index2 + remaining2 - 1))
             a = Num.bitwiseOr p3 (Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2))
 

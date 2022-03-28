@@ -14,14 +14,11 @@ wyp2 = 0x8ebc6af09c88c6e3
 wyp3 : U64
 wyp3 = 0x589965cc75374cc3
 
-shiftRightZfByHack = \by, val ->
-    Num.shiftRightBy by val
-
 wymum : U64, U64 -> [ T U64 U64 ]
 wymum = \a, b ->
     r = Num.toU128 a * Num.toU128 b
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
-    upperR = shiftRightZfByHack 64 r
+    upperR = Num.shiftRightZfBy 64 r
 
     # This is the more robust form.
     # T (Num.bitwiseXor a (Num.toU64 lowerR)) (Num.bitwiseXor b (Num.toU64 upperR))
@@ -58,7 +55,7 @@ hashU64 = \$Seed seed, key ->
     # a=(_wyr4(p)<<32)|_wyr4(p+4); b=(_wyr4(p+4)<<32)|_wyr4(p); }
     # return _wymix(secret[1]^len,_wymix(a^secret[1],b^seed));
     p1 = Num.bitwiseAnd 0xFFFF_FFFF key
-    p2 = shiftRightZfByHack 32 key
+    p2 = Num.shiftRightZfBy 32 key
     a = Num.bitwiseOr (Num.shiftLeftBy 32 p1) p2
     b = Num.bitwiseOr (Num.shiftLeftBy 32 p2) p1
 
@@ -114,7 +111,7 @@ wyr3 = \list, index, k ->
     # TODO: Remove the and in the future, it shouldn't be needed.
     # ((uint64_t)p[0])<<16)|(((uint64_t)p[k>>1])<<8)|p[k-1]
     p1 = Num.toU64 (getByte list index)
-    p2 = Num.toU64 (getByte list (index + shiftRightZfByHack 1 k))
+    p2 = Num.toU64 (getByte list (index + Num.shiftRightZfBy 1 k))
     p3 = Num.toU64 (getByte list (index + k - 1))
     a = Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2)
 
@@ -127,7 +124,7 @@ hashBytes = \$Seed oldSeed, list ->
     abs =
         if len <= 16 then
             if len >= 4 then
-                x = Num.shiftLeftBy 2 (shiftRightZfByHack 3 len)
+                x = Num.shiftLeftBy 2 (Num.shiftRightZfBy 3 len)
                 a = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list 0)) (wyr4 list x)
                 b = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list (len - 4))) (wyr4 list (len - 4 - x))
 

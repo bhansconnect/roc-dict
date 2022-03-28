@@ -23,7 +23,7 @@ create = \g ->
 # These don't exactly go here, but I think they fit best here.
 h1 : U64 -> U64
 h1 = \hashKey ->
-    shiftRightZfByHack 7 hashKey
+    Num.shiftRightZfBy 7 hashKey
 
 H2 := U8
 
@@ -70,10 +70,6 @@ matchEmptyOrDeleted = \$Group g ->
 bitwiseNot : U64 -> U64
 bitwiseNot = \x ->
     Num.bitwiseXor 0xFFFF_FFFF_FFFF_FFFF x
-
-# This is broken. Zf and normal are filled.
-shiftRightZfByHack = \by, val ->
-    Num.shiftRightBy by val
 
 setDeletedAtOffset : Group, Nat -> Group
 setDeletedAtOffset = \$Group g, offset ->

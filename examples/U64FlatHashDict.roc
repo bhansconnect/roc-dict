@@ -282,7 +282,7 @@ maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
-            Num.subWrap cap (shiftRightZfByHack 3 cap)
+            Num.subWrap cap (Num.shiftRightZfBy 3 cap)
     if size >= maxLoadCap then
         rehash ($U64FlatHashDict { data, metadata, size, default, seed })
     else
@@ -338,7 +338,3 @@ rehashHelper = \dict, oldMetadata, oldData, slotIndex ->
             # We have walked the entire list.
             # The new dict is loaded.
             dict
-
-# This is broken. Zf and normal are filled.
-shiftRightZfByHack = \by, val ->
-    Num.shiftRightBy by val

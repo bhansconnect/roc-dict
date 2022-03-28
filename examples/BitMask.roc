@@ -54,10 +54,6 @@ bitwiseNot : U64 -> U64
 bitwiseNot = \x ->
     Num.bitwiseXor 0xFFFF_FFFF_FFFF_FFFF x
 
-# This is broken. Zf and normal are filled.
-shiftRightZfByHack = \by, val ->
-    Num.shiftRightBy by val
-
 # This could be a builtin a take advantage of SSE instructions on some platforms.
 # Returns the number of trailing zero bytes in a number.
 # This function is only valid if num != 0
@@ -95,4 +91,4 @@ trailingZeroCount = \num ->
             Num.subWrap c5 1
         else
             c5
-    shiftRightZfByHack 3 c6
+    Num.shiftRightZfBy 3 c6
