@@ -11,10 +11,10 @@ Elem a : [ T U64 a ]
 U64FlatDict a := List (Elem a)
 
 empty : {} -> U64FlatDict a
-empty = \{  } -> $U64FlatDict []
+empty = \{  } -> @U64FlatDict []
 
 contains : U64FlatDict a, U64 -> Bool
-contains = \$U64FlatDict list, key ->
+contains = \@U64FlatDict list, key ->
     List.walkUntil
         list
         False
@@ -26,7 +26,7 @@ contains = \$U64FlatDict list, key ->
         )
 
 get : U64FlatDict a, U64 -> Option a
-get = \$U64FlatDict list, key ->
+get = \@U64FlatDict list, key ->
     List.walkUntil
         list
         None
@@ -38,7 +38,7 @@ get = \$U64FlatDict list, key ->
         )
 
 insert : U64FlatDict a, U64, a -> U64FlatDict a
-insert = \$U64FlatDict list, key, value ->
+insert = \@U64FlatDict list, key, value ->
     index = List.walkUntil
         list
         0
@@ -51,13 +51,13 @@ insert = \$U64FlatDict list, key, value ->
 
     if index == List.len list then
         # Insert new element
-        $U64FlatDict (List.append list (T key value))
+        @U64FlatDict (List.append list (T key value))
     else
         # Update existing element
-        $U64FlatDict (List.set list index (T key value))
+        @U64FlatDict (List.set list index (T key value))
 
 remove : U64FlatDict a, U64 -> U64FlatDict a
-remove = \$U64FlatDict list, key ->
+remove = \@U64FlatDict list, key ->
     index = List.walkUntil
         list
         0
@@ -70,7 +70,7 @@ remove = \$U64FlatDict list, key ->
 
     if index == List.len list then
         # Item not found, nothing to do
-        $U64FlatDict list
+        @U64FlatDict list
     else
         # Update existing element
-        $U64FlatDict (List.dropAt list index)
+        @U64FlatDict (List.dropAt list index)

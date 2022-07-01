@@ -7,24 +7,24 @@ BitMask := U64
 
 create : U64 -> BitMask
 create = \mask ->
-    $BitMask mask
+    @BitMask mask
 
 # This function is only valid if mask != 0.
 # So call hasMore or Any before using this.
 lowestSet : BitMask -> Nat
-lowestSet = \$BitMask mask ->
+lowestSet = \@BitMask mask ->
     trailingZeroCount mask
 
 next : BitMask -> BitMask
-next = \$BitMask mask ->
+next = \@BitMask mask ->
     nextMask = Num.bitwiseAnd mask (Num.subWrap mask 1)
-    $BitMask nextMask
+    @BitMask nextMask
 
 any : BitMask -> Bool
 any = hasMore
 
 hasMore : BitMask -> Bool
-hasMore = \$BitMask mask ->
+hasMore = \@BitMask mask ->
     mask != 0
 
 walk : BitMask, a, (a, Nat -> a) -> a
