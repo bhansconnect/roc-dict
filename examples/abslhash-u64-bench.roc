@@ -1,5 +1,5 @@
 app "abslhash-u64-bench"
-    packages { pf: "../roc/examples/benchmarks/platform" }
+    packages { pf: "../roc/examples/benchmarks/platform/main.roc" }
     imports [ pf.Task, AbslHash ]
     provides [ main ] to pf
 

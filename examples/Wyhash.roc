@@ -39,18 +39,18 @@ combine = \a, b ->
 Seed := U64
 
 createSeed : U64 -> Seed
-createSeed = \seed -> $Seed seed
+createSeed = \seed -> @Seed seed
 
 rand : Seed -> [ T Seed U64 ]
-rand = \$Seed seed ->
+rand = \@Seed seed ->
     nextSeed = Num.addWrap seed wyp0
 
-    T ($Seed nextSeed) (wymix seed (Num.bitwiseXor seed wyp1))
+    T (@Seed nextSeed) (wymix seed (Num.bitwiseXor seed wyp1))
 
 # The actual wyhash function is made to operate on raw bytes.
 # Instead I am directly implementing it for specific types.
 hashU64 : Seed, U64 -> U64
-hashU64 = \$Seed seed, key ->
+hashU64 = \@Seed seed, key ->
     # seed^=*secret;
     # a=(_wyr4(p)<<32)|_wyr4(p+4); b=(_wyr4(p+4)<<32)|_wyr4(p); }
     # return _wymix(secret[1]^len,_wymix(a^secret[1],b^seed));
@@ -118,7 +118,7 @@ wyr3 = \list, index, k ->
     Num.bitwiseOr a p3
 
 hashBytes : Seed, List U8 -> U64
-hashBytes = \$Seed oldSeed, list ->
+hashBytes = \@Seed oldSeed, list ->
     len = List.len list
     seed = Num.bitwiseXor oldSeed wyp0
     abs =

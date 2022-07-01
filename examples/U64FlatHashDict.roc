@@ -33,7 +33,7 @@ empty : a -> U64FlatHashDict a
 empty = \default ->
     defaultElem = T 0 default
 
-    $U64FlatHashDict
+    @U64FlatHashDict
         {
             data: [],
             metadata: [],
@@ -43,7 +43,7 @@ empty = \default ->
         }
 
 contains : U64FlatHashDict a, U64 -> Bool
-contains = \$U64FlatHashDict { data, metadata, seed }, key ->
+contains = \@U64FlatHashDict { data, metadata, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
@@ -56,7 +56,7 @@ contains = \$U64FlatHashDict { data, metadata, seed }, key ->
             False
 
 get : U64FlatHashDict a, U64 -> Option a
-get = \$U64FlatHashDict { data, metadata, seed }, key ->
+get = \@U64FlatHashDict { data, metadata, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
@@ -73,28 +73,28 @@ insert = \dict, key, value ->
     insertInternal (maybeRehash dict) key value
 
 len : U64FlatHashDict a -> Nat
-len = \$U64FlatHashDict { size } ->
+len = \@U64FlatHashDict { size } ->
     size
 
 capacity : U64FlatHashDict a -> Nat
-capacity = \$U64FlatHashDict { data } ->
+capacity = \@U64FlatHashDict { data } ->
     List.len data
 
 remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
-remove = \$U64FlatHashDict { data, metadata, size, default, seed }, key ->
+remove = \@U64FlatHashDict { data, metadata, size, default, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
     when indexFindHelper metadata data h2Key key (Num.toNat h1Key) 0 8 is
         T (Found _) index ->
-            T ($U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size: (size - 1), default, seed }) True
+            T (@U64FlatHashDict { data, metadata: List.set metadata index deletedSlot, size: (size - 1), default, seed }) True
 
         _ ->
-            T ($U64FlatHashDict { data, metadata, size, default, seed }) False
+            T (@U64FlatHashDict { data, metadata, size, default, seed }) False
 
 clear : U64FlatHashDict a -> U64FlatHashDict a
-clear = \$U64FlatHashDict { data, metadata, default, seed } ->
+clear = \@U64FlatHashDict { data, metadata, default, seed } ->
     cap = List.len data
     # Only clear large allocations.
     if cap > 128 * 8 then
@@ -102,7 +102,7 @@ clear = \$U64FlatHashDict { data, metadata, default, seed } ->
             T _ v ->
                 empty v
     else
-        $U64FlatHashDict {
+        @U64FlatHashDict {
             data: List.map data (\_ -> default),
             metadata: List.map metadata (\_ -> emptySlot),
             size: 0,
@@ -112,14 +112,14 @@ clear = \$U64FlatHashDict { data, metadata, default, seed } ->
 
 # Does insertion without potentially rehashing.
 insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
+insertInternal = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
     when indexInsertHelper metadata data h2Key key (Num.toNat h1Key) 0 8 is
         Found index ->
-            $U64FlatHashDict
+            @U64FlatHashDict
                 {
                     data: List.set data index (T key value),
                     metadata: List.set metadata index h2Key,
@@ -130,7 +130,7 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
         NotFound _ ->
             # Need to rescan searching for the sirt empty or deleted cell.
             index = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 0 8
-            $U64FlatHashDict
+            @U64FlatHashDict
                 {
                     data: List.set data index (T key value),
                     metadata: List.set metadata index h2Key,
@@ -140,13 +140,13 @@ insertInternal = \$U64FlatHashDict { data, metadata, size, default, seed }, key,
                 }
 
 insertInEmptyOrDeleted : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insertInEmptyOrDeleted = \$U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
+insertInEmptyOrDeleted = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
 
     index = fillEmptyOrDeletedHelper metadata data h2Key key (Num.toNat h1Key) 0 8
-    $U64FlatHashDict
+    @U64FlatHashDict
         {
             data: List.set data index (T key value),
             metadata: List.set metadata index h2Key,
@@ -264,20 +264,20 @@ indexFindHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI ->
 # This is how we grow the container.
 # If we aren't to the load factor yet, just ignore this.
 maybeRehash : U64FlatHashDict a -> U64FlatHashDict a
-maybeRehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
+maybeRehash = \@U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
             cap - (Num.shiftRightZfBy 3 cap)
     if size >= maxLoadCap then
-        rehash ($U64FlatHashDict { data, metadata, size, default, seed })
+        rehash (@U64FlatHashDict { data, metadata, size, default, seed })
     else
-        $U64FlatHashDict { data, metadata, size, default, seed }
+        @U64FlatHashDict { data, metadata, size, default, seed }
 
 rehash : U64FlatHashDict a -> U64FlatHashDict a
-rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
+rehash = \@U64FlatHashDict { data, metadata, size, default, seed } ->
     if List.isEmpty data then
-        $U64FlatHashDict
+        @U64FlatHashDict
             {
                 data: List.repeat default 8,
                 metadata: List.repeat emptySlot 8,
@@ -288,7 +288,7 @@ rehash = \$U64FlatHashDict { data, metadata, size, default, seed } ->
     else
         newLen = 2 * List.len data
         newDict =
-            $U64FlatHashDict
+            @U64FlatHashDict
                 {
                     data: List.repeat default newLen,
                     metadata: List.repeat emptySlot newLen,

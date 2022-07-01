@@ -31,13 +31,13 @@ combine = \a, b ->
 Seed := U64
 
 createSeed : U64 -> Seed
-createSeed = \seed -> $Seed seed
+createSeed = \seed -> @Seed seed
 
 rand : Seed -> [ T Seed U64 ]
-rand = \$Seed seed ->
+rand = \@Seed seed ->
     nextSeed = Num.addWrap seed salt0
 
-    T ($Seed nextSeed) (mix seed (Num.bitwiseXor seed salt1))
+    T (@Seed nextSeed) (mix seed (Num.bitwiseXor seed salt1))
 
 # We are always accessing within length, so we use a special version of List.Get
 getByte : List U8, Nat -> U8
@@ -84,7 +84,7 @@ loadU32At = \list, index ->
 
 # Direct implementation of what for happen with hashBytes but for U64
 hashU64 : Seed, U64 -> U64
-hashU64 = \$Seed seed, key ->
+hashU64 = \@Seed seed, key ->
     state0 = Num.bitwiseXor seed salt0
     a = Num.bitwiseAnd key 0xFFFF_FFFF
     b = Num.shiftRightZfBy 32 key
@@ -94,7 +94,7 @@ hashU64 = \$Seed seed, key ->
     mix w z
 
 hashBytes : Seed, List U8 -> U64
-hashBytes = \$Seed seed, list ->
+hashBytes = \@Seed seed, list ->
     startingLen = List.len list
     remaining0 = startingLen
     index0 = 0
