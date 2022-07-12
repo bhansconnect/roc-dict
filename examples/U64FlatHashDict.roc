@@ -248,6 +248,8 @@ insertHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
             Err OutOfBounds ->
                 # This will only happen if the dictionary is completely empty.
                 # Rehash and then insert.
+                x: U8
+                x = 0 - 1
                 rehashedDict = maybeRehash (@U64FlatHashDict
                     {
                         data,
