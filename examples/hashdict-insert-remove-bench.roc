@@ -1,5 +1,5 @@
 app "hashdict-insert-remove-bench"
-    packages { pf: "../roc/examples/benchmarks/platform/main.roc" }
+    packages { pf: "platform/main.roc" }
     imports [ pf.Task, U64FlatHashDict ]
     provides [ main ] to pf
 
