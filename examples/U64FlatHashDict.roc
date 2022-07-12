@@ -187,8 +187,8 @@ indexInsertHelper = \metadata, data, h2Key, key, oversizedIndex, offset, probeI 
 
     when List.get metadata index is
         Ok md ->
-            if md < 0 then
-                # Empty or deleted slot no possibility of the element
+            if md == emptySlot then
+                # Empty slot, no possibility of the element
                 NotFound index
             else if md == h2Key then
                 # This is potentially a match.
