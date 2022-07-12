@@ -61,34 +61,10 @@ trailingZeroCount : U64 -> Nat
 trailingZeroCount = \num ->
     x = Num.bitwiseAnd num (Num.addWrap (bitwiseNot num) 1)
     c0 = 63
-    c1 =
-        if Num.bitwiseAnd x 0x00000000FFFFFFFF != 0 then
-            Num.subWrap c0 32
-        else
-            c0
-    c2 =
-        if Num.bitwiseAnd x 0x0000FFFF0000FFFF != 0 then
-            Num.subWrap c1 16
-        else
-            c1
-    c3 =
-        if Num.bitwiseAnd x 0x00FF00FF00FF00FF != 0 then
-            Num.subWrap c2 8
-        else
-            c2
-    c4 =
-        if Num.bitwiseAnd x 0x0F0F0F0F0F0F0F0F != 0 then
-            Num.subWrap c3 4
-        else
-            c3
-    c5 =
-        if Num.bitwiseAnd x 0x3333333333333333 != 0 then
-            Num.subWrap c4 2
-        else
-            c4
-    c6 =
-        if Num.bitwiseAnd x 0x5555555555555555 != 0 then
-            Num.subWrap c5 1
-        else
-            c5
+    c1 = Num.subWrap c0 (if Num.bitwiseAnd x 0x00000000FFFFFFFF != 0 then 32 else 0)
+    c2 = Num.subWrap c1 (if Num.bitwiseAnd x 0x0000FFFF0000FFFF != 0 then 16 else 0)
+    c3 = Num.subWrap c2 (if Num.bitwiseAnd x 0x00FF00FF00FF00FF != 0 then 8 else 0)
+    c4 = Num.subWrap c3 (if Num.bitwiseAnd x 0x0F0F0F0F0F0F0F0F != 0 then 4 else 0)
+    c5 = Num.subWrap c4 (if Num.bitwiseAnd x 0x3333333333333333 != 0 then 2 else 0)
+    c6 = Num.subWrap c5 (if Num.bitwiseAnd x 0x5555555555555555 != 0 then 1 else 0)
     Num.shiftRightZfBy 3 c6

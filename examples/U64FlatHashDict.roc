@@ -274,7 +274,7 @@ insertInFirstEmptyOrDeleted : U64FlatHashDict a, Probe, Group.H2, U64, a -> U64F
 insertInFirstEmptyOrDeleted = \@U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
     when List.get metadata slotIndex is
         Ok group ->
-            emptyOrDeletedMask = Group.matchEmpty group
+            emptyOrDeletedMask = Group.matchEmptyOrDeleted group
             if BitMask.any emptyOrDeletedMask then
                 # We found a spot to insert in.
                 offset = BitMask.lowestSet emptyOrDeletedMask
