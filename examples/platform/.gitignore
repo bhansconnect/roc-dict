@@ -1,2 +1,6 @@
 zig-cache
 host.o
+dynhost
+libapp.so
+metadata
+preprocessedhost
