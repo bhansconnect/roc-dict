@@ -102,6 +102,8 @@ getHelper = \data, metadata, { slotIndex, probeI, mask }, h2Key, key ->
                                 Continue (Err NotFound)
                         Err OutOfBounds ->
                             # This should not be possible, maybe panic
+                            x : U8
+                            x = 0 - 1
                             Stop (Err NotFound)
                 )
             when found is
@@ -117,6 +119,8 @@ getHelper = \data, metadata, { slotIndex, probeI, mask }, h2Key, key ->
                         getHelper data metadata np h2Key key
         Err OutOfBounds ->
             # This should not be possible, maybe panic
+            x : U8
+            x = 0 - 1
             Err NotFound
 
 remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
@@ -144,6 +148,8 @@ removeHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
                                 Continue (Err NotFound)
                         Err OutOfBounds ->
                             # This should not be possible, maybe panic
+                            x : U8
+                            x = 0 - 1
                             Stop (Err NotFound)
                 )
             when found is
@@ -169,6 +175,8 @@ removeHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
                         removeHelper (@U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key
         Err OutOfBounds ->
             # This should not be possible, maybe panic
+            x : U8
+            x = 0 - 1
             T (@U64FlatHashDict { data, metadata, size, default, seed }) False
 
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
@@ -204,6 +212,8 @@ insertHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
                                     Continue (Err NotFound)
                             Err OutOfBounds ->
                                 # This should not be possible, maybe panic
+                                x : U8
+                                x = 0 - 1
                                 Stop (Err NotFound)
                     )
                 when found is
@@ -284,6 +294,8 @@ insertInFirstEmptyOrDeleted = \@U64FlatHashDict { data, metadata, size, default,
                 insertInFirstEmptyOrDeleted (@U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
         Err OutOfBounds ->
             # This should not be possible, maybe panic
+            x : U8
+            x = 0 - 1
             @U64FlatHashDict { data, metadata, size: 0 - 1, default, seed }
 
 # This is how we grow the container.
@@ -342,6 +354,8 @@ rehashHelper = \dict, oldMetadata, oldData, slotIndex ->
                                 insertInFirstEmptyOrDeleted currentDict probe h2Key k v
                             Err OutOfBounds ->
                                 # This should not be possible, maybe panic
+                                x : U8
+                                x = 0 - 1
                                 currentDict
                     )
                 rehashHelper nextDict oldMetadata oldData (Num.addWrap slotIndex 1)
