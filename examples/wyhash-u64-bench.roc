@@ -1,5 +1,5 @@
 app "wyhash-u64-bench"
-    packages { pf: "../roc/examples/benchmarks/platform/main.roc" }
+    packages { pf: "platform/main.roc" }
     imports [ pf.Task, Wyhash ]
     provides [ main ] to pf
 
