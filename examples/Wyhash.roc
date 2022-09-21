@@ -60,6 +60,7 @@ hashU64 = \@Seed seed, key ->
     b = Num.bitwiseOr (Num.shiftLeftBy p2 32) p1
 
     wymix (Num.bitwiseXor wyp1 8) (wymix (Num.bitwiseXor wyp1 a) (Num.bitwiseXor (Num.bitwiseXor seed wyp0) b))
+    # 0
 
 # We are always accessing within length, so we use a special version of List.Get
 getByte : List U8, Nat -> U8
