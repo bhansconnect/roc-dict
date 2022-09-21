@@ -67,4 +67,4 @@ trailingZeroCount = \num ->
     c4 = Num.subWrap c3 (if Num.bitwiseAnd x 0x0F0F0F0F0F0F0F0F != 0 then 4 else 0)
     c5 = Num.subWrap c4 (if Num.bitwiseAnd x 0x3333333333333333 != 0 then 2 else 0)
     c6 = Num.subWrap c5 (if Num.bitwiseAnd x 0x5555555555555555 != 0 then 1 else 0)
-    Num.shiftRightZfBy 3 c6
+    Num.shiftRightZfBy c6 3

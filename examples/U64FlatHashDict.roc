@@ -307,7 +307,7 @@ maybeRehash = \@U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
-            Num.subWrap cap (Num.shiftRightZfBy 3 cap)
+            Num.subWrap cap (Num.shiftRightZfBy cap 3)
     if size >= maxLoadCap then
         rehash (@U64FlatHashDict { data, metadata, size, default, seed })
     else

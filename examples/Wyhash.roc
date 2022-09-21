@@ -18,7 +18,7 @@ wymum : U64, U64 -> [ T U64 U64 ]
 wymum = \a, b ->
     r = Num.toU128 a * Num.toU128 b
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
-    upperR = Num.shiftRightZfBy 64 r
+    upperR = Num.shiftRightZfBy r 64
 
     # This is the more robust form.
     # T (Num.bitwiseXor a (Num.toU64 lowerR)) (Num.bitwiseXor b (Num.toU64 upperR))
@@ -55,9 +55,9 @@ hashU64 = \@Seed seed, key ->
     # a=(_wyr4(p)<<32)|_wyr4(p+4); b=(_wyr4(p+4)<<32)|_wyr4(p); }
     # return _wymix(secret[1]^len,_wymix(a^secret[1],b^seed));
     p1 = Num.bitwiseAnd 0xFFFF_FFFF key
-    p2 = Num.shiftRightZfBy 32 key
-    a = Num.bitwiseOr (Num.shiftLeftBy 32 p1) p2
-    b = Num.bitwiseOr (Num.shiftLeftBy 32 p2) p1
+    p2 = Num.shiftRightZfBy key 32
+    a = Num.bitwiseOr (Num.shiftLeftBy p1 32) p2
+    b = Num.bitwiseOr (Num.shiftLeftBy p2 32) p1
 
     wymix (Num.bitwiseXor wyp1 8) (wymix (Num.bitwiseXor wyp1 a) (Num.bitwiseXor (Num.bitwiseXor seed wyp0) b))
 
@@ -84,10 +84,10 @@ wyr8 = \list, index ->
     p6 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 5)))
     p7 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 6)))
     p8 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 7)))
-    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
-    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
-    c = Num.bitwiseOr (Num.shiftLeftBy 32 p5) (Num.shiftLeftBy 40 p6)
-    d = Num.bitwiseOr (Num.shiftLeftBy 48 p7) (Num.shiftLeftBy 56 p8)
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy p2 8)
+    b = Num.bitwiseOr (Num.shiftLeftBy p3 16) (Num.shiftLeftBy p4 24)
+    c = Num.bitwiseOr (Num.shiftLeftBy p5 32) (Num.shiftLeftBy p6 40)
+    d = Num.bitwiseOr (Num.shiftLeftBy p7 48) (Num.shiftLeftBy p8 56)
 
     Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
 
@@ -99,8 +99,8 @@ wyr4 = \list, index ->
     p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 1)))
     p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 2)))
     p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
-    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
-    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy p2 8)
+    b = Num.bitwiseOr (Num.shiftLeftBy p3 16) (Num.shiftLeftBy p4 24)
 
     Num.bitwiseOr a b
 
@@ -111,9 +111,9 @@ wyr3 = \list, index, k ->
     # TODO: Remove the and in the future, it shouldn't be needed.
     # ((uint64_t)p[0])<<16)|(((uint64_t)p[k>>1])<<8)|p[k-1]
     p1 = Num.toU64 (getByte list index)
-    p2 = Num.toU64 (getByte list (index + Num.shiftRightZfBy 1 k))
+    p2 = Num.toU64 (getByte list (index + Num.shiftRightZfBy k 1)) 
     p3 = Num.toU64 (getByte list (index + k - 1))
-    a = Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2)
+    a = Num.bitwiseOr (Num.shiftLeftBy p1 16) (Num.shiftLeftBy p2 8)
 
     Num.bitwiseOr a p3
 
@@ -124,9 +124,9 @@ hashBytes = \@Seed oldSeed, list ->
     abs =
         if len <= 16 then
             if len >= 4 then
-                x = Num.shiftLeftBy 2 (Num.shiftRightZfBy 3 len)
-                a = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list 0)) (wyr4 list x)
-                b = Num.bitwiseOr (Num.shiftLeftBy 32 (wyr4 list (len - 4))) (wyr4 list (len - 4 - x))
+                x = Num.shiftLeftBy (Num.shiftRightZfBy len 3) 2
+                a = Num.bitwiseOr (Num.shiftLeftBy (wyr4 list 0) 32) (wyr4 list x)
+                b = Num.bitwiseOr (Num.shiftLeftBy (wyr4 list (len - 4)) 32) (wyr4 list (len - 4 - x))
 
                 { a, b, seed }
             else if len > 0 then

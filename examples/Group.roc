@@ -23,7 +23,7 @@ create = \g ->
 # These don't exactly go here, but I think they fit best here.
 h1 : U64 -> U64
 h1 = \hashKey ->
-    Num.shiftRightZfBy 7 hashKey
+    Num.shiftRightZfBy hashKey 7
 
 H2 := U8
 
@@ -35,7 +35,7 @@ h2 = \hashKey ->
 size : Nat
 size = 8
 
-mul8 = \val -> Num.shiftLeftBy 3 val
+mul8 = \val -> Num.shiftLeftBy val 3
 mulSize = mul8
 
 # All of these group matching functions could use SSE and would merit adding builtins.
@@ -57,14 +57,14 @@ matchEmpty : Group -> BitMask
 matchEmpty = \@Group g ->
     msbs = 0x8080808080808080
     ng = bitwiseNot g
-    x = (Num.bitwiseAnd g (Num.shiftLeftBy 6 ng))
+    x = (Num.bitwiseAnd g (Num.shiftLeftBy ng 6))
     BitMask.create (Num.bitwiseAnd x msbs)
 
 matchEmptyOrDeleted : Group -> BitMask
 matchEmptyOrDeleted = \@Group g ->
     msbs = 0x8080808080808080
     ng = bitwiseNot g
-    x = (Num.bitwiseAnd g (Num.shiftLeftBy 7 ng))
+    x = (Num.bitwiseAnd g (Num.shiftLeftBy ng 7))
     BitMask.create (Num.bitwiseAnd x msbs)
     
 bitwiseNot : U64 -> U64
@@ -75,14 +75,14 @@ setDeletedAtOffset : Group, Nat -> Group
 setDeletedAtOffset = \@Group g, offset ->
     bitOffset = mul8 offset
     # No bitwiseNot update when added.
-    mask = bitwiseNot (Num.toU64 (Num.shiftLeftBy bitOffset 0xFF))
-    update = Num.shiftLeftBy bitOffset (Num.toNat deletedSlot)
+    mask = bitwiseNot (Num.toU64 (Num.shiftLeftBy 0xFF bitOffset))
+    update = Num.shiftLeftBy (Num.toNat deletedSlot) bitOffset
     @Group (Num.bitwiseOr (Num.bitwiseAnd g (Num.toU64 mask)) (Num.toU64 update))
 
 updateKeyAtOffset : Group, Nat, H2 -> Group
 updateKeyAtOffset = \@Group g, offset, @H2 updateVal ->
     bitOffset = mul8 offset
     # No bitwiseNot update when added.
-    mask = bitwiseNot (Num.toU64 (Num.shiftLeftBy bitOffset 0xFF))
-    update = Num.shiftLeftBy bitOffset (Num.toNat updateVal)
+    mask = bitwiseNot (Num.toU64 (Num.shiftLeftBy 0xFF bitOffset))
+    update = Num.shiftLeftBy (Num.toNat updateVal) bitOffset
     @Group (Num.bitwiseOr (Num.bitwiseAnd g (Num.toU64 mask)) (Num.toU64 update))

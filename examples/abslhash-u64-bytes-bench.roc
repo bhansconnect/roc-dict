@@ -20,13 +20,13 @@ setBytes : List U8, U64 -> List U8
 setBytes = \oldList, val ->
     # TODO: remove Num.toU8 once bitwiseAnd works correctly.
     p0 = Num.toU8 (Num.bitwiseAnd 0xFF val)
-    p1 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 8 val))
-    p2 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 16 val))
-    p3 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 24 val))
-    p4 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 32 val))
-    p5 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 40 val))
-    p6 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 48 val))
-    p7 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy 56 val))
+    p1 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 8))
+    p2 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 16))
+    p3 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 24))
+    p4 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 32))
+    p5 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 40))
+    p6 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 48))
+    p7 = Num.toU8 (Num.bitwiseAnd 0xFF (Num.shiftRightBy val 56))
 
     oldList
         |> List.set 0 p0
