@@ -54,8 +54,8 @@ empty = \default ->
 
     @U64FlatHashDict
         {
-            data: [],
-            metadata: [],
+            data: List.repeat defaultElem 8,
+            metadata: List.repeat emptySlot 8,
             size: 0,
             default: defaultElem,
             seed: Wyhash.createSeed 0x0123_4567_89AB_CDEF,
@@ -88,10 +88,6 @@ get = \@U64FlatHashDict { data, metadata, seed }, key ->
 
         NotFound ->
             None
-
-insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insert = \dict, key, value ->
-    insertInternal (maybeRehash dict) key value
 
 len : U64FlatHashDict a -> Nat
 len = \@U64FlatHashDict { size } ->
@@ -133,8 +129,8 @@ clear = \@U64FlatHashDict { data, metadata, default, seed } ->
         }
 
 # Does insertion without potentially rehashing.
-insertInternal : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insertInternal = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
+insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
+insert = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
     h2Key = h2 hashKey
@@ -146,21 +142,37 @@ insertInternal = \@U64FlatHashDict { data, metadata, size, default, seed }, key,
                 {
                     data: List.set data index (T key value),
                     metadata: List.set metadata index h2Key,
-                    size: size + 1,
+                    size,
                     default,
                     seed,
                 }
         NotFound ->
             # Need to rescan searching for the first empty or deleted cell.
-            index = fillEmptyOrDeletedHelper metadata data h2Key key probe 0
-            @U64FlatHashDict
-                {
-                    data: List.set data index (T key value),
-                    metadata: List.set metadata index h2Key,
-                    size: size + 1,
-                    default,
-                    seed,
-                }
+            rehashedDict =
+                maybeRehash (
+                    @U64FlatHashDict
+                        {
+                            data,
+                            metadata,
+                            size: size + 1,
+                            default,
+                            seed,
+                        }
+                )
+            insertNotFoundHelper rehashedDict key value h1Key h2Key
+
+insertNotFoundHelper : U64FlatHashDict a, U64, a, U64, I8 -> U64FlatHashDict a
+insertNotFoundHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value, h1Key, h2Key ->
+    probe = newProbe h1Key (div8 (List.len metadata))
+    index = fillEmptyOrDeletedHelper metadata data h2Key key probe 0
+    @U64FlatHashDict
+        {
+            data: List.set data index (T key value),
+            metadata: List.set metadata index h2Key,
+            size,
+            default,
+            seed,
+        }
 
 insertInEmptyOrDeleted : U64FlatHashDict a, U64, a -> U64FlatHashDict a
 insertInEmptyOrDeleted = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
@@ -302,54 +314,43 @@ maybeRehash = \@U64FlatHashDict { data, metadata, size, default, seed } ->
 
 rehash : U64FlatHashDict a -> U64FlatHashDict a
 rehash = \@U64FlatHashDict { data, metadata, size, default, seed } ->
-    if List.isEmpty data then
+    newLen = 2 * List.len data
+    newDict =
         @U64FlatHashDict
             {
-                data: List.repeat default 8,
-                metadata: List.repeat emptySlot 8,
+                data: List.repeat default newLen,
+                metadata: List.repeat emptySlot newLen,
                 size,
                 default,
                 seed,
             }
-    else
-        newLen = 2 * List.len data
-        newDict =
-            @U64FlatHashDict
-                {
-                    data: List.repeat default newLen,
-                    metadata: List.repeat emptySlot newLen,
-                    size,
-                    default,
-                    seed,
-                }
 
-        rehashHelper newDict metadata data 0
+    rehashHelper newDict metadata data 0
 
 rehashHelper : U64FlatHashDict a, List I8, List (Elem a), Nat -> U64FlatHashDict a
 rehashHelper = \dict, metadata, data, index ->
-    if index < List.len metadata then
-        when List.get metadata index is
-            Ok md ->
-                nextDict =
-                    if md >= 0 then
-                        # We have an actual element here
-                        when List.get data index is
-                            Ok (T k v) ->
-                                insertInEmptyOrDeleted dict k v
+    when List.get metadata index is
+        Ok md ->
+            nextDict =
+                if md >= 0 then
+                    # We have an actual element here
+                    when List.get data index is
+                        Ok (T k v) ->
+                            insertInEmptyOrDeleted dict k v
 
-                            Err OutOfBounds ->
-                                # This should be an impossible state since data and metadata are the same size
-                                dict
-                    else
-                        # Empty or deleted data
-                        dict
+                        Err OutOfBounds ->
+                            # This should be an impossible state since data and metadata are the same size
+                            x : U8
+                            x = 0 - 1
+                            dict
+                else
+                    # Empty or deleted data
+                    dict
 
-                rehashHelper nextDict metadata data (index + 1)
+            rehashHelper nextDict metadata data (index + 1)
 
-            Err OutOfBounds ->
-                dict
-    else
-        dict
+        Err OutOfBounds ->
+            dict
 
 h1 : U64 -> U64
 h1 = \hashKey ->
