@@ -268,7 +268,7 @@ maybeRehash = \@U64FlatHashDict { data, metadata, size, default, seed } ->
     cap = List.len data
     maxLoadCap =
             # This is 7/8 * capacity, which is the max load factor.
-            cap - (Num.shiftRightZfBy 3 cap)
+            cap - (Num.shiftRightZfBy cap 3)
     if size >= maxLoadCap then
         rehash (@U64FlatHashDict { data, metadata, size, default, seed })
     else
@@ -327,7 +327,7 @@ rehashHelper = \dict, metadata, data, index ->
 
 h1 : U64 -> U64
 h1 = \hashKey ->
-    Num.shiftRightZfBy 7 hashKey
+    Num.shiftRightZfBy hashKey 7
 
 h2 : U64 -> I8
 h2 = \hashKey ->

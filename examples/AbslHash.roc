@@ -20,7 +20,7 @@ mix : U64, U64 -> U64
 mix = \a, b ->
     r = Num.toU128 a * Num.toU128 b
     lowerR = Num.bitwiseAnd r 0xFFFF_FFFF_FFFF_FFFF
-    upperR = Num.shiftRightZfBy 64 r
+    upperR = Num.shiftRightZfBy r 64
 
     Num.bitwiseXor (Num.toU64 lowerR) (Num.toU64 upperR)
 
@@ -62,10 +62,10 @@ loadU64At = \list, index ->
     p6 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 5)))
     p7 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 6)))
     p8 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 7)))
-    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
-    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
-    c = Num.bitwiseOr (Num.shiftLeftBy 32 p5) (Num.shiftLeftBy 40 p6)
-    d = Num.bitwiseOr (Num.shiftLeftBy 48 p7) (Num.shiftLeftBy 56 p8)
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy p2 8)
+    b = Num.bitwiseOr (Num.shiftLeftBy p3 16) (Num.shiftLeftBy p4 24)
+    c = Num.bitwiseOr (Num.shiftLeftBy p5 32) (Num.shiftLeftBy p6 40)
+    d = Num.bitwiseOr (Num.shiftLeftBy p7 48) (Num.shiftLeftBy p8 56)
 
     Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
 
@@ -77,8 +77,8 @@ loadU32At = \list, index ->
     p2 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 1)))
     p3 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 2)))
     p4 = Num.bitwiseAnd 0xFF (Num.toU64 (getByte list (index + 3)))
-    a = Num.bitwiseOr p1 (Num.shiftLeftBy 8 p2)
-    b = Num.bitwiseOr (Num.shiftLeftBy 16 p3) (Num.shiftLeftBy 24 p4)
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy p2 8)
+    b = Num.bitwiseOr (Num.shiftLeftBy p3 16) (Num.shiftLeftBy p4 24)
 
     Num.bitwiseOr a b
 
@@ -87,7 +87,7 @@ hashU64 : Seed, U64 -> U64
 hashU64 = \@Seed seed, key ->
     state0 = Num.bitwiseXor seed salt0
     a = Num.bitwiseAnd key 0xFFFF_FFFF
-    b = Num.shiftRightZfBy 32 key
+    b = Num.shiftRightZfBy key 32
     w = mix (Num.bitwiseXor a salt1) (Num.bitwiseXor b state0)
     z = Num.bitwiseXor salt1 8
 
@@ -119,9 +119,9 @@ hashBytes = \@Seed seed, list ->
             { a: loadU32At list index2, b: loadU32At list (index2 + remaining2 - 4) }
         else if remaining2 > 0 then
             p1 = Num.toU64 (getByte list index2)
-            p2 = Num.toU64 (getByte list (index2 + Num.shiftRightZfBy 1 remaining2))
+            p2 = Num.toU64 (getByte list (index2 + Num.shiftRightZfBy remaining2 1))
             p3 = Num.toU64 (getByte list (index2 + remaining2 - 1))
-            a = Num.bitwiseOr p3 (Num.bitwiseOr (Num.shiftLeftBy 16 p1) (Num.shiftLeftBy 8 p2))
+            a = Num.bitwiseOr p3 (Num.bitwiseOr (Num.shiftLeftBy p1 16) (Num.shiftLeftBy p2 8))
 
             { a, b: 0 }
         else
