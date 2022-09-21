@@ -161,6 +161,9 @@ insert = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value -
                 )
             insertNotFoundHelper rehashedDict key value h1Key h2Key
 
+# This and the next function are very similar.
+# They can not be merged because that will lead to them not getting inlined
+# That can have a large performance impact.
 insertNotFoundHelper : U64FlatHashDict a, U64, a, U64, I8 -> U64FlatHashDict a
 insertNotFoundHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value, h1Key, h2Key ->
     probe = newProbe h1Key (div8 (List.len metadata))
