@@ -5,3 +5,6 @@ target
 perf.data*
 *.svg
 
+# llvm debug
+*.ll
+
