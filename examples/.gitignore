@@ -1,5 +1,7 @@
 echo
 hashdict-insert-remove-bench
+hashdict-insert-remove-bench-base
+hashdict-insert-remove-bench-change
 abslhash-u64-bench
 abslhash-u64-bytes-bench
 abslhash-1k-list-bench
