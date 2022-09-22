@@ -61,6 +61,31 @@ empty = \default ->
             seed: Wyhash.createSeed 0x0123_4567_89AB_CDEF,
         }
 
+len : U64FlatHashDict a -> Nat
+len = \@U64FlatHashDict { size } ->
+    size
+
+capacity : U64FlatHashDict a -> Nat
+capacity = \@U64FlatHashDict { data } ->
+    List.len data
+
+clear : U64FlatHashDict a -> U64FlatHashDict a
+clear = \@U64FlatHashDict { data, metadata, default, seed } ->
+    cap = List.len data
+    # Only clear large allocations.
+    if cap > 128 * 8 then
+        when default is
+            T _ v ->
+                empty v
+    else
+        @U64FlatHashDict {
+            data: List.map data (\_ -> default),
+            metadata: List.map metadata (\_ -> emptySlot),
+            size: 0,
+            default,
+            seed
+        }
+
 contains : U64FlatHashDict a, U64 -> Bool
 contains = \@U64FlatHashDict { data, metadata, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
@@ -89,14 +114,6 @@ get = \@U64FlatHashDict { data, metadata, seed }, key ->
         NotFound ->
             None
 
-len : U64FlatHashDict a -> Nat
-len = \@U64FlatHashDict { size } ->
-    size
-
-capacity : U64FlatHashDict a -> Nat
-capacity = \@U64FlatHashDict { data } ->
-    List.len data
-
 remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
 remove = \@U64FlatHashDict { data, metadata, size, default, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
@@ -110,23 +127,6 @@ remove = \@U64FlatHashDict { data, metadata, size, default, seed }, key ->
 
         NotFound ->
             T (@U64FlatHashDict { data, metadata, size, default, seed }) False
-
-clear : U64FlatHashDict a -> U64FlatHashDict a
-clear = \@U64FlatHashDict { data, metadata, default, seed } ->
-    cap = List.len data
-    # Only clear large allocations.
-    if cap > 128 * 8 then
-        when default is
-            T _ v ->
-                empty v
-    else
-        @U64FlatHashDict {
-            data: List.map data (\_ -> default),
-            metadata: List.map metadata (\_ -> emptySlot),
-            size: 0,
-            default,
-            seed
-        }
 
 # Does insertion without potentially rehashing.
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
