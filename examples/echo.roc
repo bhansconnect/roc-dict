@@ -37,10 +37,10 @@ echo = \shout ->
         spaceInUtf8 = 32
 
         when U64FlatHashDict.get cache (Num.toU64 length) is
-            Some val ->
+            Ok val ->
                 Str.toUtf8 val
 
-            None ->
+            Err NotFound ->
                 List.repeat spaceInUtf8 length
 
     shout

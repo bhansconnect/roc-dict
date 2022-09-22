@@ -10,8 +10,6 @@ deletedSlot : I8
 deletedSlot = -2
 # sentinel : I8
 # sentinel = -1
-Option a : [ Some a, None ]
-
 Elem a : [ T U64 a ]
 
 # Metadata should be grouped. This helps make loading faster.
@@ -100,7 +98,7 @@ contains = \@U64FlatHashDict { data, metadata, seed }, key ->
         NotFound ->
             False
 
-get : U64FlatHashDict a, U64 -> Option a
+get : U64FlatHashDict a, U64 -> Result a [ NotFound ]
 get = \@U64FlatHashDict { data, metadata, seed }, key ->
     hashKey = Wyhash.hashU64 seed key
     h1Key = h1 hashKey
@@ -109,10 +107,10 @@ get = \@U64FlatHashDict { data, metadata, seed }, key ->
 
     when findValueHelper metadata data h2Key key probe 0 is
         Found _ v ->
-            Some v
+            Ok v
 
         NotFound ->
-            None
+            Err NotFound
 
 remove : U64FlatHashDict a, U64 -> [ T (U64FlatHashDict a) Bool ]
 remove = \@U64FlatHashDict { data, metadata, size, default, seed }, key ->
