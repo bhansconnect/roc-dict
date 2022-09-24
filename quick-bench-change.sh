@@ -1,6 +1,6 @@
-#!/bin/sh
+#!/bin/bash
 
-rm ./examples/hashdict-insert-remove-bench-base ./examples/hashdict-insert-remove-bench-change
+rm -f ./examples/hashdict-insert-remove-bench-base ./examples/hashdict-insert-remove-bench-change
 
 git stash
 roc build --optimize ./examples/hashdict-insert-remove-bench.roc
