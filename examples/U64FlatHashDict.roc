@@ -148,33 +148,17 @@ removeHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
             T (@U64FlatHashDict { data, metadata, size, default, seed }) False
 
 insert : U64FlatHashDict a, U64, a -> U64FlatHashDict a
-insert = \@U64FlatHashDict { data, metadata, size, default, seed }, key, value ->
-    if !(List.isEmpty metadata) then
-        hashKey = Wyhash.hashU64 seed key
-        h1Key = Group.h1 hashKey
-        h2Key = Group.h2 hashKey
-        probe = newProbe h1Key (List.len metadata)
-        when insertHelper (@U64FlatHashDict { data, metadata, size, default, seed }) probe h2Key key value is
-            Inserted dict ->
-                dict
-            NeedsInsert dict ->
-                # probe must be recalculated because there may have been a rehash.
-                (@U64FlatHashDict dictInternal) = dict
-                probe2 = newProbe h1Key (List.len dictInternal.metadata)
-                insertInEmptyOrDeleted dict probe2 h2Key key value
-    else
-        rehashedDict = maybeRehash (@U64FlatHashDict
-            {
-                data,
-                metadata,
-                size: Num.addWrap size 1,
-                default,
-                seed,
-            })
-        insert rehashedDict key value
+insert = \dict, key, value ->
+    @U64FlatHashDict { metadata, seed } = dict
+    hashKey = Wyhash.hashU64 seed key
+    h1Key = Group.h1 hashKey
+    h2Key = Group.h2 hashKey
+    probe = newProbe h1Key (List.len metadata)
 
-insertHelper : U64FlatHashDict a, Probe, Group.H2, U64, a -> [ Inserted (U64FlatHashDict a), NeedsInsert (U64FlatHashDict a) ]
-insertHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h2Key, key, value ->
+    insertHelper dict probe h1Key h2Key key value
+
+insertHelper : U64FlatHashDict a, Probe, U64, Group.H2, U64, a -> U64FlatHashDict a
+insertHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slotIndex, probeI, mask }, h1Key, h2Key, key, value ->
     when List.get metadata slotIndex is
         Ok group ->
             h2Match = Group.match group h2Key
@@ -197,14 +181,14 @@ insertHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
             when found is
                 Ok offset ->
                     dataIndex = Num.addWrap (Group.mulSize slotIndex) offset
-                    Inserted (@U64FlatHashDict
+                    @U64FlatHashDict
                         {
                             data: List.set data dataIndex (T key value),
                             metadata, # metadata will already be correct if we found the key
                             size,
                             default,
                             seed,
-                        })
+                        }
                 Err NotFound ->
                     emptyMask = Group.matchEmpty group
                     if BitMask.any emptyMask then
@@ -218,25 +202,25 @@ insertHelper = \@U64FlatHashDict { data, metadata, size, default, seed }, { slot
                                 default,
                                 seed,
                             })
-                        NeedsInsert rehashedDict
+                        @U64FlatHashDict {metadata: newMetadata} = rehashedDict
+                        probe2 = newProbe h1Key (List.len newMetadata)
+                        insertInEmptyOrDeleted rehashedDict probe2 h2Key key value
                     else
                         # Group is full, check next group.
                         np = nextProbe { slotIndex, probeI, mask }
-                        insertHelper (@U64FlatHashDict { data, metadata, size, default, seed }) np h2Key key value
+                        insertHelper (@U64FlatHashDict { data, metadata, size, default, seed }) np h1Key h2Key key value
         Err OutOfBounds ->
-            # This will only happen if the dictionary is completely empty.
-            # Rehash and then insert.
+            # Impossible, just panic
             x: U8
             x = 0 - 1
-            rehashedDict = maybeRehash (@U64FlatHashDict
+            @U64FlatHashDict
                 {
                     data,
                     metadata,
                     size: Num.addWrap size 1,
                     default,
                     seed,
-                })
-            NeedsInsert rehashedDict
+                }
 
 # This will not check for key matches.
 # It should only be used when we know the key won't match.
