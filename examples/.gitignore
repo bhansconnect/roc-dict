@@ -1,4 +1,5 @@
 echo
+hashdict-insert-bench
 hashdict-insert-remove-bench
 hashdict-insert-remove-bench-base
 hashdict-insert-remove-bench-change

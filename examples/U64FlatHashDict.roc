@@ -40,8 +40,8 @@ empty = \default ->
 
     @U64FlatHashDict
         {
-            data: List.repeat defaultElem Group.size,
-            metadata: [Group.allEmpty],
+            data: List.repeat defaultElem (Group.mulSize 262144),
+            metadata: List.repeat Group.allEmpty 262144,
             size: 0,
             default: defaultElem,
             seed: Wyhash.createSeed 0x0123_4567_89AB_CDEF,
