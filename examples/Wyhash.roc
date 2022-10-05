@@ -1,5 +1,5 @@
 interface Wyhash
-    exposes [ hashU64, hashBytes, hashBytesStateful, createSeed, Seed, rand, combine ]
+    exposes [ hashU64, hashBytes, hashBytesStateful, hashBytesStatefulList, createSeed, Seed, rand, combine ]
     imports []
 
 # Note: this is just the version of wyhash for 64 bit numbers.
@@ -545,41 +545,41 @@ sixthU64HashBuffer = \buf ->
 
     Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
 
-State : { seed: U64, see1: U64, see2: U64, buf: HashBuffer, over48: Bool, totalLen: U64 }
+State : { seed: U64, see1: U64, see2: U64, buf: HashBuffer, totalLen: U64 }
 
 hashBytesStateful : Seed, List U8 -> U64
 hashBytesStateful = \@Seed oldSeed, list ->
     # we are gonna pretend we don't know how many bytes we have and instead walk these bytes, build up state, and hash that way.
     seed = Num.bitwiseXor oldSeed wyp0
     # even though we hash in chunks of 48, we need to potentially keep around an extra 16 bytes for finalizing the algorithm.
-    state = {seed, see1: seed, see2: seed, buf: emptyHashBuffer, over48: Bool.false, totalLen: 0}
+    state = {seed, see1: seed, see2: seed, buf: emptyHashBuffer, totalLen: 0}
     List.walk list state hashByte
     |> complete
 
 hashByte : State, U8 -> State
-hashByte = \{seed, see1, see2, buf, over48, totalLen}, byte ->
+hashByte = \{seed, see1, see2, buf, totalLen}, byte ->
     # # by default, just collect until we have 48 bytes to hash.
     nextLen = Num.addWrap buf.len 1
     nextBuf =
         tmp = setHashBuffer buf buf.len byte
         {tmp & len: nextLen}
     if nextLen != 48 then
-       {seed, see1, see2, buf: nextBuf, over48, totalLen: Num.addWrap totalLen 1} 
+       {seed, see1, see2, buf: nextBuf, totalLen: Num.addWrap totalLen 1} 
     else
         # we are at max size, hash 48 bytes.
         # Note: the first 16 are old bytes for final state cleanup, so skip them.
         newSeed = wymix (Num.bitwiseXor (firstU64HashBuffer nextBuf) wyp1) (Num.bitwiseXor (secondU64HashBuffer nextBuf) seed)
         newSee1 = wymix (Num.bitwiseXor (thirdU64HashBuffer nextBuf) wyp2) (Num.bitwiseXor (fourthU64HashBuffer nextBuf) see1)
         newSee2 = wymix (Num.bitwiseXor (fifthU64HashBuffer nextBuf) wyp3) (Num.bitwiseXor (sixthU64HashBuffer nextBuf) see2)
-        {seed: newSeed, see1: newSee1, see2: newSee2, buf: clearHashBuffer nextBuf, over48: Bool.true, totalLen: Num.addWrap totalLen 1}
+        {seed: newSeed, see1: newSee1, see2: newSee2, buf: clearHashBuffer nextBuf, totalLen: Num.addWrap totalLen 1}
 
 
 complete : State -> U64
-complete = \{seed, see1, see2, buf, over48, totalLen} ->
+complete = \{seed, see1, see2, buf, totalLen} ->
     len = buf.len
     abs : { a: U64, b: U64, seed: U64 }
     abs =
-        if Bool.not over48 then
+        if totalLen < 48 then
             # ignoring all of these cases for now, just panic.
             { a: 0, b: 0 - 1, seed }
         else if len != 16 then
@@ -612,3 +612,70 @@ complete = \{seed, see1, see2, buf, over48, totalLen} ->
 #     a = Num.bitwiseOr (Num.shiftLeftBy p0U64 16) (Num.shiftLeftBy p1U64 8)
 
 #     Num.bitwiseOr a p2U64
+
+StateList : { seed: U64, see1: U64, see2: U64, buf: List U8, totalLen: U64 }
+
+hashBytesStatefulList : Seed, List U8 -> U64
+hashBytesStatefulList = \@Seed oldSeed, list ->
+    # we are gonna pretend we don't know how many bytes we have and instead walk these bytes, build up state, and hash that way.
+    seed = Num.bitwiseXor oldSeed wyp0
+    buf =
+        List.withCapacity 64
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+        |> List.append 0
+    # even though we hash in chunks of 48, we need to potentially keep around an extra 16 bytes for finalizing the algorithm.
+    state = {seed, see1: seed, see2: seed, buf, totalLen: 0}
+    List.walk list state hashByteList
+    |> completeList
+
+hashByteList : StateList, U8 -> StateList
+hashByteList = \{seed, see1, see2, buf, totalLen}, byte ->
+    # by default, just collect until we have 48 bytes to hash.
+    # That is 64 elements because we have to keep an extra 16
+    nextBuf = List.append buf byte
+    if List.len nextBuf != 64 then
+       {seed, see1, see2, buf: nextBuf, totalLen: Num.addWrap totalLen 1} 
+    else
+        # we are at max size, hash 48 bytes.
+        # Note: the first 16 are old bytes for final state cleanup, so skip them.
+        newSeed = wymix (Num.bitwiseXor (wyr8 nextBuf 16) wyp1) (Num.bitwiseXor (wyr8 nextBuf 24) seed)
+        newSee1 = wymix (Num.bitwiseXor (wyr8 nextBuf 32) wyp2) (Num.bitwiseXor (wyr8 nextBuf 40) see1)
+        newSee2 = wymix (Num.bitwiseXor (wyr8 nextBuf 48) wyp3) (Num.bitwiseXor (wyr8 nextBuf 56) see2)
+        {seed: newSeed, see1: newSee1, see2: newSee2, buf: List.takeLast nextBuf 16, totalLen: Num.addWrap totalLen 1}
+
+
+completeList : StateList -> U64
+completeList = \{seed, see1, see2, buf, totalLen} ->
+    len = List.len buf |> Num.subWrap 16
+    abs : { a: U64, b: U64, seed: U64 }
+    abs =
+        if totalLen < 48 then
+            # ignoring all of these cases for now, just panic.
+            { a: 0, b: 0 - 1, seed }
+        else if len != 16 then
+            # Also, ignoring this case to make base test simple.
+            { a: 0, b: 0 - 1, seed }
+        else
+            # This should be correct for the 0 case but not others.
+            finalSeed =
+                seed
+                |> Num.bitwiseXor see1
+                |> Num.bitwiseXor see2
+
+            { a: wyr8 buf 16, b: wyr8 buf 24, seed: finalSeed }
+    
+    wymix (Num.bitwiseXor wyp1 totalLen) (wymix (Num.bitwiseXor wyp1 abs.a) (Num.bitwiseXor abs.seed abs.b))

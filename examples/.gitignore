@@ -8,3 +8,6 @@ abslhash-1k-list-bench
 wyhash-u64-bench
 wyhash-u64-bytes-bench
 wyhash-1k-list-bench
+wyhash-1k-list-stateful-bench
+wyhash-1k-list-stateful-list-bench
+wyhash-1k-list-with-copy-bench
