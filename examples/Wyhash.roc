@@ -617,54 +617,83 @@ complete = \{seed, see1, see2, buf, totalLen} ->
 
 #     Num.bitwiseOr a p2U64
 
-StateList : { seed: U64, see1: U64, see2: U64, buf: List U8, totalLen: U64 }
+RingBuffer : { buf : List U8, start : U8, len : U8 }
+
+# ring buffer has 64 elements, so mask of 63 to loop.
+mask : U8
+mask = 0b0011_1111
+
+emptyRingBuffer : RingBuffer
+emptyRingBuffer = {
+    buf : List.repeat 0 64,
+    start : 0,
+    len : 0,
+}
+
+appendRingBuffer : RingBuffer, U8 -> RingBuffer
+appendRingBuffer = \{buf, start, len}, val ->
+    index =
+        start
+        |> Num.addWrap len
+        |> Num.bitwiseAnd mask
+        |> Num.toNat
+    { buf: List.set buf index val, start, len: Num.addWrap len 1 }
+
+clearExceptOneRingBuffer : RingBuffer -> RingBuffer
+clearExceptOneRingBuffer = \buf ->
+    start =
+        buf.start
+        |> Num.addWrap buf.len
+        |> Num.subWrap 1
+        |> Num.bitwiseAnd mask
+    {buf & start, len: 1}
+
+wyr8RingBuffer : RingBuffer, U8 -> U64
+wyr8RingBuffer = \{buf, start}, index ->
+    i = Num.addWrap start index
+    p1 = Num.toU64 (getByte buf (Num.bitwiseAnd i mask |> Num.toNat))
+    p2 = Num.toU64 (getByte buf (Num.addWrap i 1 |> Num.bitwiseAnd mask |> Num.toNat))
+    p3 = Num.toU64 (getByte buf (Num.addWrap i 2 |> Num.bitwiseAnd mask |> Num.toNat))
+    p4 = Num.toU64 (getByte buf (Num.addWrap i 3 |> Num.bitwiseAnd mask |> Num.toNat))
+    p5 = Num.toU64 (getByte buf (Num.addWrap i 4 |> Num.bitwiseAnd mask |> Num.toNat))
+    p6 = Num.toU64 (getByte buf (Num.addWrap i 5 |> Num.bitwiseAnd mask |> Num.toNat))
+    p7 = Num.toU64 (getByte buf (Num.addWrap i 6 |> Num.bitwiseAnd mask |> Num.toNat))
+    p8 = Num.toU64 (getByte buf (Num.addWrap i 7 |> Num.bitwiseAnd mask |> Num.toNat))
+    a = Num.bitwiseOr p1 (Num.shiftLeftBy p2 8)
+    b = Num.bitwiseOr (Num.shiftLeftBy p3 16) (Num.shiftLeftBy p4 24)
+    c = Num.bitwiseOr (Num.shiftLeftBy p5 32) (Num.shiftLeftBy p6 40)
+    d = Num.bitwiseOr (Num.shiftLeftBy p7 48) (Num.shiftLeftBy p8 56)
+
+    Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
+
+StateList : { seed: U64, see1: U64, see2: U64, buf: RingBuffer, totalLen: U64 }
 
 hashBytesStatefulList : Seed, List U8 -> U64
 hashBytesStatefulList = \@Seed oldSeed, list ->
     # we are gonna pretend we don't know how many bytes we have and instead walk these bytes, build up state, and hash that way.
     seed = Num.bitwiseXor oldSeed wyp0
-    buf =
-        List.withCapacity 64
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-        |> List.append 0
-    # even though we hash in chunks of 48, we need to potentially keep around an extra 16 bytes for finalizing the algorithm.
-    state = {seed, see1: seed, see2: seed, buf, totalLen: 0}
+    state = {seed, see1: seed, see2: seed, buf: emptyRingBuffer, totalLen: 0}
     List.walk list state hashByteList
     |> completeList
 
 hashByteList : StateList, U8 -> StateList
 hashByteList = \{seed, see1, see2, buf, totalLen}, byte ->
     # by default, just collect until we have 48 bytes to hash.
-    # That is 64 elements because we have to keep an extra 16
-    nextBuf = List.append buf byte
-    if List.len nextBuf != 64 then
+    nextBuf = appendRingBuffer buf byte
+    if nextBuf.len <= 48 then
        {seed, see1, see2, buf: nextBuf, totalLen: Num.addWrap totalLen 1} 
     else
-        # we are at max size, hash 48 bytes.
-        # Note: the first 16 are old bytes for final state cleanup, so skip them.
-        newSeed = wymix (Num.bitwiseXor (wyr8 nextBuf 16) wyp1) (Num.bitwiseXor (wyr8 nextBuf 24) seed)
-        newSee1 = wymix (Num.bitwiseXor (wyr8 nextBuf 32) wyp2) (Num.bitwiseXor (wyr8 nextBuf 40) see1)
-        newSee2 = wymix (Num.bitwiseXor (wyr8 nextBuf 48) wyp3) (Num.bitwiseXor (wyr8 nextBuf 56) see2)
-        {seed: newSeed, see1: newSee1, see2: newSee2, buf: List.takeLast nextBuf 16, totalLen: Num.addWrap totalLen 1}
+        # hash when we get the 49th byte.
+        # hash 48 bytes leaving 1 left
+        newSeed = wymix (Num.bitwiseXor (wyr8RingBuffer nextBuf 0) wyp1) (Num.bitwiseXor (wyr8RingBuffer nextBuf 8) seed)
+        newSee1 = wymix (Num.bitwiseXor (wyr8RingBuffer nextBuf 16) wyp2) (Num.bitwiseXor (wyr8RingBuffer nextBuf 24) see1)
+        newSee2 = wymix (Num.bitwiseXor (wyr8RingBuffer nextBuf 32) wyp3) (Num.bitwiseXor (wyr8RingBuffer nextBuf 40) see2)
+        {seed: newSeed, see1: newSee1, see2: newSee2, buf: clearExceptOneRingBuffer nextBuf, totalLen: Num.addWrap totalLen 1}
 
 
 completeList : StateList -> U64
 completeList = \{seed, see1, see2, buf, totalLen} ->
-    len = List.len buf |> Num.subWrap 16
+    len = buf.len
     abs : { a: U64, b: U64, seed: U64 }
     abs =
         if totalLen < 48 then
@@ -680,6 +709,6 @@ completeList = \{seed, see1, see2, buf, totalLen} ->
                 |> Num.bitwiseXor see1
                 |> Num.bitwiseXor see2
 
-            { a: wyr8 buf 16, b: wyr8 buf 24, seed: finalSeed }
+            { a: wyr8RingBuffer buf 0, b: wyr8RingBuffer buf 8, seed: finalSeed }
     
     wymix (Num.bitwiseXor wyp1 totalLen) (wymix (Num.bitwiseXor wyp1 abs.a) (Num.bitwiseXor abs.seed abs.b))
