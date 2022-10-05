@@ -545,6 +545,10 @@ sixthU64HashBuffer = \buf ->
 
     Num.bitwiseOr (Num.bitwiseOr a b) (Num.bitwiseOr c d)
 
+# If we really wanted to give the best try of making this performant,
+# we should use a ring buffer with 64 elements.
+# Everytime we hit 49 elements, we hash the first 48.
+# Due to the ring, we can avoid copying bytes.
 State : { seed: U64, see1: U64, see2: U64, buf: HashBuffer, totalLen: U64 }
 
 hashBytesStateful : Seed, List U8 -> U64
