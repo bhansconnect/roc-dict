@@ -4,13 +4,20 @@ project(
   version : '0.1',
   default_options : [
     'warning_level=2',
-    'cpp_std=c++17',
+    'cpp_std=c++20',
   ]
 )
 
 absl_proj = subproject('abseil-cpp')
 absl_container_dep = absl_proj.get_variable('absl_container_dep')
 absl_hash_dep = absl_proj.get_variable('absl_hash_dep')
+
+executable(
+  'wyhash-tests',
+  'src/wyhash-tests.cc',
+  dependencies: [],
+  link_with: [],
+)
 
 executable(
   'wyhash-u64-bench',
