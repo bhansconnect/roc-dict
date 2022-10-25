@@ -53,3 +53,10 @@ executable(
   dependencies: [absl_container_dep, absl_hash_dep],
   link_with: [],
 )
+
+executable(
+  'wyhash-hashflood',
+  'src/wyhash-hashflood.cc',
+  dependencies: [],
+  link_with: [],
+)
