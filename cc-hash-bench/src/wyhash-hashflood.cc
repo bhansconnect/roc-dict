@@ -62,11 +62,6 @@ inline void replace_all(std::string& str, const std::string& from,
   }
 }
 
-void clean_string(std::string& str) {
-  replace_all(str, "\\", "\\\\");
-  replace_all(str, "\"", "\\\"");
-}
-
 int main() {
   const uint64_t seed = 0x526F6352616E643F;
   const uint64_t state = seed;
@@ -89,7 +84,7 @@ int main() {
   std::vector<std::string> out{max_cap};
   const uint8_t base_char = ' ';
   const uint8_t min_char = base_char + 1;
-  const uint8_t max_char = '~';
+  const uint8_t max_char = 'Z';
   const uint8_t char_diff = max_char - min_char;
 
   uint32_t thread_count = std::thread::hardware_concurrency();
@@ -148,7 +143,6 @@ int main() {
   std::shuffle(out.begin(), out.end(),
                std::default_random_engine{static_cast<uint32_t>(std::rand())});
   for (auto& data : out) {
-    clean_string(data);
     printf("%s\n", data.c_str());
   }
   fflush(stderr);
