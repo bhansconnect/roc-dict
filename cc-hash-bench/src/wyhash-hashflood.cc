@@ -4,6 +4,7 @@
 #include <csignal>
 #include <cstdint>
 #include <cstdio>
+#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -86,7 +87,8 @@ int main() {
 
   std::atomic_size_t index = 0;
   std::vector<std::string> out{max_cap};
-  const uint8_t min_char = ' ';
+  const uint8_t base_char = ' ';
+  const uint8_t min_char = base_char + 1;
   const uint8_t max_char = '~';
   const uint8_t char_diff = max_char - min_char;
 
@@ -100,18 +102,31 @@ int main() {
               static_cast<uint8_t>(min_char + (id * char_diff) / thread_count),
               static_cast<uint8_t>(min_char +
                                    (((id + 1) * char_diff) / thread_count) - 1),
-              min_char, max_char};
+              min_char,
+              max_char,
+          };
+          std::string padded_data{};
           while (!complete) {
-            auto data = next(data_gen);
-            uint64_t hash = wyhash(data.c_str(), data.size(), seed, _wyp);
+            // Prepadding makes equality cost more by ensure the size is the
+            // same. Note: if the value is too small, it will crash.
+            padded_data.resize(8, base_char);
+            const auto data = next(data_gen);
+            assert(data.size() <= padded_data.size());
+            const auto offset = padded_data.size() - data.size();
+            for (size_t i = 0; i < data.size(); ++i) {
+              padded_data[offset + i] = data[i];
+            }
+            uint64_t hash =
+                wyhash(padded_data.c_str(), padded_data.size(), seed, _wyp);
             uint64_t new_state = _wymix(state, hash);
             uint64_t h1 = new_state >> 7;
+            uint64_t h2 = new_state & 0b01111111;
             uint64_t slot = h1 & mask;
-            if (slot == 0) {
+            if (slot == 0 && h2 == 0) {
               // Only find items that collide with slot 0.
               size_t tmp = index++;
               if (tmp < max_cap) {
-                out[tmp] = data;
+                out[tmp] = padded_data;
               } else {
                 complete = true;
                 // Avoid incrementing past max cap.
@@ -129,10 +144,11 @@ int main() {
   for (uint32_t i = 0; i < thread_count; ++i) {
     threads[i].join();
   }
-  fprintf(stderr, "Found %zu collisions for a slot 0.\n", index.load());
+  fprintf(stderr, "Found %zu collisions for slot 0.\n", index.load());
+  std::shuffle(out.begin(), out.end(),
+               std::default_random_engine{static_cast<uint32_t>(std::rand())});
   for (auto& data : out) {
-    // clean_string(data);
-    // printf("\"%s\"\n", data.c_str());
+    clean_string(data);
     printf("%s\n", data.c_str());
   }
   fflush(stderr);
