@@ -52,16 +52,6 @@ std::string& next(StringGen& sg) {
   return sg.data;
 }
 
-inline void replace_all(std::string& str, const std::string& from,
-                        const std::string& to) {
-  size_t start_pos = 0;
-  while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
-    str.replace(start_pos, from.length(), to);
-    start_pos +=
-        to.length();  // Handles case where 'to' is a substring of 'from'
-  }
-}
-
 int main() {
   const uint64_t seed = 0x526F6352616E643F;
   const uint64_t state = seed;
@@ -69,6 +59,9 @@ int main() {
   uint32_t slots_log_2 = 0;
   fprintf(stderr, "input slots (in power of 2) of target dict: ");
   scanf("%u", &slots_log_2);
+  uint32_t str_size = 0;
+  fprintf(stderr, "size of string to use as a key: ");
+  scanf("%u", &str_size);
   const size_t slots = 1 << slots_log_2;
   const size_t mask = slots - 1;
   // Each slot contains 8 items.
@@ -104,7 +97,7 @@ int main() {
           while (!complete) {
             // Prepadding makes equality cost more by ensure the size is the
             // same. Note: if the value is too small, it will crash.
-            padded_data.resize(8, base_char);
+            padded_data.resize(str_size, base_char);
             const auto data = next(data_gen);
             assert(data.size() <= padded_data.size());
             const auto offset = padded_data.size() - data.size();
